@@ -428,8 +428,7 @@ AllowedIPs = {client_ip}/32
             
         print(f"Client {client_config['name']} added")
 
-        # Generate client config file content
-        config_content = self.generate_wireguard_client_config(server, client_config)
+        config_content = self.generate_wireguard_client_config(server, client_config, include_comments=True)
         return client_config, config_content
 
     def delete_client(self, server_id, client_id):
@@ -500,15 +499,21 @@ AllowedIPs = {client_ip}/32
         with open(server['config_path'], 'w') as f:
             f.writelines(new_lines)
 
-    def generate_wireguard_client_config(self, server, client_config):
-        """Generate WireGuard client configuration with obfuscation"""
-        config = f"""# AmneziaWG Client Configuration
+    def generate_wireguard_client_config(self, server, client_config, include_comments=True):
+        """Generate WireGuard client configuration"""
+        config = ""
+        
+        # Add comments only if requested
+        if include_comments:
+            config = f"""# AmneziaWG Client Configuration
 # Server: {server['name']}
 # Client: {client_config['name']}
 # Generated: {time.ctime()}
 # Server IP: {server['public_ip']}:{server['port']}
 
-[Interface]
+"""
+
+        config += f"""[Interface]
 PrivateKey = {client_config['client_private_key']}
 Address = {client_config['client_ip']}/32
 DNS = {', '.join(server['dns'])}
@@ -732,6 +737,7 @@ def delete_client(server_id, client_id):
 
 @app.route('/api/servers/<server_id>/clients/<client_id>/config')
 def download_client_config(server_id, client_id):
+    """Download client configuration file (with comments)"""
     client = amnezia_manager.config["clients"].get(client_id)
     if not client or client.get("server_id") != server_id:
         return jsonify({"error": "Client not found"}), 404
@@ -740,7 +746,10 @@ def download_client_config(server_id, client_id):
     if not server:
         return jsonify({"error": "Server not found"}), 404
 
-    config_content = amnezia_manager.generate_wireguard_client_config(server, client)
+    # Use full version with comments for download
+    config_content = amnezia_manager.generate_wireguard_client_config(
+        server, client, include_comments=True
+    )
 
     with tempfile.NamedTemporaryFile(mode='w', suffix='.conf', delete=False) as f:
         f.write(config_content)
@@ -931,14 +940,48 @@ def iptables_test():
 
     except Exception as e:
         return jsonify({"error": f"iptables test failed: {str(e)}"}), 500
+    
+@app.route('/api/servers/<server_id>/clients/<client_id>/config-both')
+def get_client_config_both(server_id, client_id):
+    """Get both clean and full client configurations"""
+    client = amnezia_manager.config["clients"].get(client_id)
+    if not client or client.get("server_id") != server_id:
+        return jsonify({"error": "Client not found"}), 404
+
+    server = next((s for s in amnezia_manager.config['servers'] if s['id'] == server_id), None)
+    if not server:
+        return jsonify({"error": "Server not found"}), 404
+
+    # Generate both versions
+    clean_config = amnezia_manager.generate_wireguard_client_config(
+        server, client, include_comments=False
+    )
+    
+    full_config = amnezia_manager.generate_wireguard_client_config(
+        server, client, include_comments=True
+    )
+    
+    return jsonify({
+        "server_id": server_id,
+        "client_id": client_id,
+        "client_name": client['name'],
+        "clean_config": clean_config,
+        "full_config": full_config,
+        "clean_length": len(clean_config),
+        "full_length": len(full_config)
+    })
 
 @socketio.on('connect')
 def handle_connect():
     print(f"WebSocket connected from {request.remote_addr}")
+    
+    # Include the port in the status message
     socketio.emit('status', {
         'message': 'Connected to AmneziaWG Web UI',
         'public_ip': amnezia_manager.public_ip,
-        'nginx_port': NGINX_PORT
+        'nginx_port': NGINX_PORT,
+        'server_port': request.environ.get('SERVER_PORT', 'unknown'),
+        'client_port': request.environ.get('HTTP_X_FORWARDED_PORT', 'unknown')
     })
 
 @socketio.on('disconnect')

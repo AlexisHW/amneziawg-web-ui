@@ -920,7 +920,6 @@ class AmneziaApp {
                                         readonly
                                         placeholder="Loading configuration..."></textarea>
                                     <div class="flex justify-between items-center mt-3">
-                                        <span id="charCount" class="text-xs text-gray-400">0 characters</span>
                                         <span id="configType" class="text-xs font-medium text-blue-500">Clean Config</span>
                                     </div>
                                 </div>

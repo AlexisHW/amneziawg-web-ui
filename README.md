@@ -18,6 +18,8 @@ All server configuration is done via web interface or via API endpoints. Providi
 *   **Auto-start**: Automatic server startup on container restart
 *   **IPTables Automation**: Automatic firewall configuration
 *   **Custom MTU**: Configurable MTU settings (1280-1440)
+*   **QR code**: Client can be viewed, copied and downloaded via text, file or QR code
+*   **Config view**: Both servers' and clients' configs can be viewed directly from UI
 
 ## 🏗️ Architecture
 
@@ -142,9 +144,13 @@ Content-Type: application/json
 
 `DELETE /api/servers/{server_id}/clients/{client_id}`
 
-#### Download Client Config
+#### Download Client Config in `text/plain` (.conf file)
 
 `GET /api/servers/{server_id}/clients/{client_id}/config`
+
+#### Download Client Config in JSON format
+
+`GET /api/servers/{server_id}/clients/{client_id}/config-both`
 
 #### List All Clients
 

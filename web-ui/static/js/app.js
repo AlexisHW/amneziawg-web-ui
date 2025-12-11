@@ -115,36 +115,30 @@ class AmneziaApp {
         const hostname = window.location.hostname;
         const port = window.location.port;
 
-        // Determine if we're using a custom port (not 80 or 443)
-        const isCustomPort = port && port !== '' && port !== '80' && port !== '443';
-
         let socketUrl;
-        if (isCustomPort) {
-            // For custom ports, explicitly specify the URL with port
+        if (port && port !== '' && port !== '80' && port !== '443') {
             socketUrl = `${protocol}//${hostname}:${port}`;
-            console.log(`Connecting to WebSocket with custom port: ${socketUrl}`);
         } else {
-            // For default ports, let SocketIO auto-detect
-            socketUrl = undefined;
-            console.log('Connecting to WebSocket with auto-detection');
+            socketUrl = `${protocol}//${hostname}`;
         }
 
         this.socket = io(socketUrl, {
-            path: '/socket.io'
+            path: '/socket.io',
+            transports: ['websocket', 'polling'] // Explicitly set transports
         });
 
         this.socket.on('connect', () => {
-            console.log("Connected to server via WebSocket");
+            console.log("✅ Connected to server via WebSocket");
             this.updateStatus('Connected to AmneziaWG Web UI');
         });
 
         this.socket.on('disconnect', () => {
-            console.log("Disconnected from server");
+            console.log("❌ Disconnected from server:", reason);
             this.updateStatus('Disconnected from AmneziaWG Web UI');
         });
 
         this.socket.on('connect_error', (error) => {
-            console.error("WebSocket connection error:", error);
+            console.error("❌ WebSocket connection error:", error);
             this.updateStatus('Connection error - retrying...');
         });
 

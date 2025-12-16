@@ -552,7 +552,7 @@ class AmneziaApp {
         });
     }
 
-    renderServerClients(serverId, clients) {
+    renderServerClients(serverId, clients, traffic = {}) {
         if (clients.length === 0) {
             return '<p class="text-gray-500 text-sm">No clients yet.</p>';
         }
@@ -560,7 +560,9 @@ class AmneziaApp {
         return `
             <h4 class="font-medium mb-2">Clients (${clients.length}):</h4>
             <div class="space-y-2">
-                ${clients.map(client => `
+                ${clients.map(client => {
+                    const clientTraffic = traffic[client.id] || {received: '0 B', sent: '0 B'};
+                    return `
                     <div class="flex justify-between items-center bg-gray-50 p-3 rounded-lg hover:bg-gray-100 transition-colors duration-200">
                         <div class="flex items-center">
                             <div class="w-8 h-8 flex items-center justify-center bg-blue-100 text-blue-600 rounded-full mr-3">
@@ -568,9 +570,12 @@ class AmneziaApp {
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
                                 </svg>
                             </div>
-                            <div>
+                            <div class="flex items-center space-x-2">
                                 <span class="font-medium">${client.name}</span>
                                 <span class="text-sm text-gray-600 ml-2">${client.client_ip}</span>
+                                <span class="text-xs text-gray-500 ml-6 whitespace-nowrap" style="margin-left: 1cm;">
+                                    ⬇️ ${clientTraffic.received} &nbsp; ⬆️ ${clientTraffic.sent}
+                                </span>
                             </div>
                         </div>
                         <div class="flex space-x-2">
@@ -598,23 +603,24 @@ class AmneziaApp {
                             </button>
                         </div>
                     </div>
-                `).join('')}
+                    `;
+                }).join('')}
             </div>
         `;
     }
 
     loadServerClients(serverId) {
-        fetch(`/api/servers/${serverId}/clients`)
-            .then(response => response.json())
-            .then(clients => {
-                const clientsContainer = this.getElement(`clients-${serverId}`);
-                if (clientsContainer) {
-                    clientsContainer.innerHTML = this.renderServerClients(serverId, clients);
-                }
-            })
-            .catch(error => {
-                console.error(`Error loading clients for server ${serverId}:`, error);
-            });
+        Promise.all([
+            fetch(`/api/servers/${serverId}/clients`).then(res => res.json()),
+            fetch(`/api/servers/${serverId}/traffic`).then(res => res.ok ? res.json() : {})
+        ]).then(([clients, traffic]) => {
+            const clientsContainer = this.getElement(`clients-${serverId}`);
+            if (clientsContainer) {
+                clientsContainer.innerHTML = this.renderServerClients(serverId, clients, traffic);
+            }
+        }).catch(error => {
+            console.error(`Error loading clients or traffic for server ${serverId}:`, error);
+        });
     }
 
     showServerError(message) {

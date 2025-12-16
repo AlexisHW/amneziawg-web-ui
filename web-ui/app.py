@@ -673,6 +673,51 @@ PersistentKeepalive = 25
                    if client.get("server_id") == server_id]
         return list(self.config["clients"].values())
 
+    def get_traffic_for_server(self, server_id):
+        server = next((s for s in self.config['servers'] if s['id'] == server_id), None)
+        if not server:
+            return None
+
+        interface = server['interface']
+        output = self.execute_command(f"/usr/bin/awg show {interface}")
+        if not output:
+            return None
+
+        # Parse output to get traffic per peer public key
+        traffic_data = {}
+
+        lines = output.splitlines()
+        current_peer = None
+        for line in lines:
+            line = line.strip()
+            if line.startswith("peer:"):
+                current_peer = line.split("peer:")[1].strip()
+            elif line.startswith("transfer:") and current_peer:
+                # Example: transfer: 1.39 MiB received, 6.59 MiB sent
+                transfer_line = line[len("transfer:"):].strip()
+                # Parse received and sent
+                parts = transfer_line.split(',')
+                received = parts[0].strip() if len(parts) > 0 else ""
+                sent = parts[1].strip() if len(parts) > 1 else ""
+                traffic_data[current_peer] = {
+                    "received": received,
+                    "sent": sent
+                }
+                current_peer = None
+
+        # Map traffic data to clients by matching public keys
+        clients_traffic = {}
+        for client_id, client in self.config["clients"].items():
+            if client.get("server_id") == server_id:
+                pubkey = client.get("client_public_key")
+                if pubkey in traffic_data:
+                    clients_traffic[client_id] = traffic_data[pubkey]
+                else:
+                    clients_traffic[client_id] = {"received": "0 B", "sent": "0 B"}
+
+        return clients_traffic
+
+
 amnezia_manager = AmneziaManager()
 
 # API Routes
@@ -970,6 +1015,14 @@ def get_client_config_both(server_id, client_id):
         "clean_length": len(clean_config),
         "full_length": len(full_config)
     })
+    
+@app.route('/api/servers/<server_id>/traffic')
+def get_server_traffic(server_id):
+    traffic = amnezia_manager.get_traffic_for_server(server_id)
+    if traffic is None:
+        return jsonify({"error": "Server not found or no traffic data"}), 404
+    return jsonify(traffic)
+
 
 @socketio.on('connect')
 def handle_connect():

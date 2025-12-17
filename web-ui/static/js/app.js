@@ -117,14 +117,18 @@ class AmneziaApp {
 
         let socketUrl;
         if (port && port !== '' && port !== '80' && port !== '443') {
+            // For custom ports, explicitly specify the URL with port
             socketUrl = `${protocol}//${hostname}:${port}`;
+            console.log(`Connecting to WebSocket with custom port: ${socketUrl}`);
         } else {
-            socketUrl = `${protocol}//${hostname}`;
+            // For default ports, let SocketIO auto-detect
+            socketUrl = undefined;
+            console.log('Connecting to WebSocket with auto-detection');
         }
 
         this.socket = io(socketUrl, {
             path: '/socket.io',
-            transports: ['websocket', 'polling'] // Explicitly set transports
+            transports: ['websocket'], // Explicitly set transports
         });
 
         this.socket.on('connect', () => {
@@ -133,7 +137,7 @@ class AmneziaApp {
         });
 
         this.socket.on('disconnect', () => {
-            console.log("❌ Disconnected from server:", reason);
+            console.log("❌ Disconnected from server");
             this.updateStatus('Disconnected from AmneziaWG Web UI');
         });
 
@@ -573,7 +577,7 @@ class AmneziaApp {
                             <div class="flex items-center space-x-2">
                                 <span class="font-medium">${client.name}</span>
                                 <span class="text-sm text-gray-600 ml-2">${client.client_ip}</span>
-                                <span class="text-xs text-gray-500 ml-6 whitespace-nowrap" style="margin-left: 1cm;">
+                                <span class="text-xs text-gray-500 ml-6" style="margin-left: 0.5cm;">
                                     ⬇️ ${clientTraffic.received} &nbsp; ⬆️ ${clientTraffic.sent}
                                 </span>
                             </div>

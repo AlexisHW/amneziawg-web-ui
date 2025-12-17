@@ -1,5 +1,42 @@
 # CHANGELOG
 
+## Version 1.3.0 - Client traffic
+
+### New Features
+Enable monitoring of per-client traffic statistics on a given server and displaying the current traffic usage in the UI. After server is stopped the data on the network adapters is reset.
+
+- Backend: Added `get_traffic_for_server` method to parse `awg show <interface>` output and map traffic to clients by public key.
+- Backend: Added `/api/servers/<server_id>/traffic` endpoint returning traffic info JSON.
+- Frontend: Modified `loadServerClients` to fetch traffic and pass it to renderServerClients.
+- Frontend: Updated `renderServerClients` to display received and sent traffic per client below client IP.
+
+### API Endpoints Added
+
+#### `/api/servers/<server_id>/traffic`
+**Method**: GET
+**Description**: This endpoint returns traffic statistics for all clients connected to a specified server.
+**Response Format**:
+```json
+{
+  "clientA": {
+    "received": "2.45 MiB",
+    "sent": "5.12 MiB"
+  },
+  "clientB": {
+    "received": "0 B",
+    "sent": "0 B"
+  }
+}
+```
+If the server is not found or no traffic data is available, the endpoint returns:
+```json
+{
+  "error": "Server not found or no traffic data"
+}
+```
+with HTTP status code 404.
+
+
 ## Version 1.2.0 - QR Code Feature Release
 
 ### New Features

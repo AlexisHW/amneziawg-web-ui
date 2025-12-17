@@ -119,11 +119,8 @@ class AmneziaApp {
         if (port && port !== '' && port !== '80' && port !== '443') {
             // For custom ports, explicitly specify the URL with port
             socketUrl = `${protocol}//${hostname}:${port}`;
-            console.log(`Connecting to WebSocket with custom port: ${socketUrl}`);
         } else {
-            // For default ports, let SocketIO auto-detect
-            socketUrl = undefined;
-            console.log('Connecting to WebSocket with auto-detection');
+            socketUrl = `${protocol}//${hostname}`;
         }
 
         this.socket = io(socketUrl, {

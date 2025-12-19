@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## Version 1.3.1 - Client traffic
+
+### Fix
+Fixed healthcheck on custom port. Added `/status` endpoint for health check.
+
 ## Version 1.3.0 - Client traffic
 
 ### New Features

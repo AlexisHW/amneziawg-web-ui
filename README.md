@@ -336,7 +336,7 @@ Export Configuration
 
 ### Backup configuration directory
 
-`docker cp amnea-web-ui:/etc/amnezia ./amnezia-backup/`
+`docker cp amnezia-web-ui:/etc/amnezia ./amnezia-backup/`
 
 ## Debug Commands
 
@@ -355,12 +355,12 @@ The app is exposed directly on 80 or custom port with basic authentication.
 > I strongly recommend protecting endpoints with firewall and/or nginx authentication.
 > Basic auth alone is not strong enough and can be bruteforced.
 
-By default, docker image is built with user `admin` and password `changeme`. To change the default behaviour you need to provide with docker envs `NGINX_USER` and `NGINX_PASSWORD`.
+By default, docker image is built with user `admin` and password `changeme`. To change the default behavior you need to provide with docker envs `NGINX_USER` and `NGINX_PASSWORD`.
 
 > [!NOTE]
-> There is no possiblity to protect the built-in nginx with allow ip rule, because when run in docker with bridge mode docker doesn't pass the real client ip into the container. External proxy or additional container is required to perform client ip check.
+> There is no possibility to protect the built-in nginx with allow ip rule, because when run in docker with bridge mode docker doesn't pass the real client ip into the container. External proxy or additional container is required to perform client ip check.
 
 # Support
-The NO support provided as well as no regualr upodates are planned. Found issues can be fixed if free time permits.
+The NO support provided as well as no regular updates are planned. Found issues can be fixed if free time permits.
 
 From Russia with L❤️VE

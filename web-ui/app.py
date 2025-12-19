@@ -1023,6 +1023,18 @@ def get_server_traffic(server_id):
         return jsonify({"error": "Server not found or no traffic data"}), 404
     return jsonify(traffic)
 
+@app.route('/status')
+def get_container_uptime():
+    # Get the modification time of /proc/1/cmdline (container start time epoch)
+    result = subprocess.check_output(["stat", "-c %Y", "/proc/1/cmdline"], text=True)
+    uptime_seconds_epoch = int(result.strip())
+
+    now_epoch = int(time.time())
+    
+    uptime_seconds = now_epoch - uptime_seconds_epoch
+    return uptime_seconds
+
+print(f"Container Uptime: {get_container_uptime()} seconds")
 
 @socketio.on('connect')
 def handle_connect():

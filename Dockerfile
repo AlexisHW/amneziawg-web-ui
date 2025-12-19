@@ -25,11 +25,12 @@ RUN chmod +x /app/scripts/*.sh
 
 # Expose default ports
 EXPOSE 80
-EXPOSE 5000
 EXPOSE 51820/udp
+
+ENV NGINX_PORT=80
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:80/ || exit 1
+    CMD curl -f http://localhost:$NGINX_PORT/status || exit 1
 
 ENTRYPOINT ["/app/scripts/start.sh"]

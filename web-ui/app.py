@@ -1032,9 +1032,12 @@ def get_container_uptime():
     now_epoch = int(time.time())
     
     uptime_seconds = now_epoch - uptime_seconds_epoch
-    return uptime_seconds
-
-print(f"Container Uptime: {get_container_uptime()} seconds")
+    days = uptime_seconds // 86400
+    hours = (uptime_seconds % 86400) // 3600
+    minutes = (uptime_seconds % 3600) // 60
+    seconds = uptime_seconds % 60
+    
+    return f"Container Uptime: {days}d {hours}h {minutes}m {seconds}s"
 
 @socketio.on('connect')
 def handle_connect():

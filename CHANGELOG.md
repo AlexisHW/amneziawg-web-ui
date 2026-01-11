@@ -1,5 +1,16 @@
 # CHANGELOG
 
+## Version 1.3.2 - obfuscation adjustment
+
+### Fix
+Minor fixes for generation of obfuscations params.
+Adjusted default MTU.
+
+### Improvement
+Now Jmin and Jmax can be set manually in the valid ranges.
+Improved params generation validation.
+
+
 ## Version 1.3.1 - healthcheck
 
 ### Fix

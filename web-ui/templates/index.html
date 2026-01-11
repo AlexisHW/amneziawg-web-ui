@@ -89,16 +89,12 @@
                             <input type="number" id="paramJc" value="3" min="4" max="12" class="mt-1 block w-full border border-gray-300 rounded-md px-2 py-1 text-sm">
                         </div>
                         <div>
-                            <label class="block text-xs font-medium text-gray-600">Jmin</label>
-                            <input type="number" id="paramJmin" value="8" class="mt-1 block w-full border border-gray-300 rounded-md px-2 py-1 text-sm" readonly>
+                            <label class="block text-xs font-medium text-gray-600">Jmin (recommended: 8)</label>
+                            <input type="number" id="paramJmin" value="8" min="1" max="1438" class="mt-1 block w-full border border-gray-300 rounded-md px-2 py-1 text-sm">
                         </div>
                         <div>
-                            <label class="block text-xs font-medium text-gray-600">Jmax</label>
-                            <input type="number" id="paramJmax" value="80" class="mt-1 block w-full border border-gray-300 rounded-md px-2 py-1 text-sm" readonly>
-                        </div>
-                        <div>
-                            <label class="block text-xs font-medium text-gray-600">MTU</label>
-                            <input type="number" id="paramMTU" value="1420" class="mt-1 block w-full border border-gray-300 rounded-md px-2 py-1 text-sm" readonly>
+                            <label class="block text-xs font-medium text-gray-600">Jmax (recommended: 80)</label>
+                            <input type="number" id="paramJmax" value="80" min="2" max="1440" class="mt-1 block w-full border border-gray-300 rounded-md px-2 py-1 text-sm">
                         </div>
                     </div>
                     <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm mt-2">
@@ -135,6 +131,7 @@
                         </div>
                     </div>
                 </div>
+                <div id="obfuscationError" class="text-red-600 text-xs mt-1 hidden"></div>
 
                 <div class="flex space-x-4">
                     <button type="submit" id="createButton" class="bg-blue-500 text-white px-6 py-2 rounded-md hover:bg-blue-600 transition duration-200">

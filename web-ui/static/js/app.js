@@ -222,6 +222,33 @@ class AmneziaApp {
         }
     }
 
+    validateObfuscationParamsJS(params, mtu) {
+        let errors = [];
+
+        // Jmin < Jmax ≤ mtu
+        if (!(params.Jmin < params.Jmax && params.Jmax <= mtu)) {
+            errors.push(`Jmin (${params.Jmin}) must be less than Jmax (${params.Jmax}), and Jmax ≤ MTU (${mtu})`);
+        }
+        // Jmax > Jmin < mtu
+        if (!(params.Jmax > params.Jmin && params.Jmin < mtu)) {
+            errors.push(`Jmax (${params.Jmax}) must be greater than Jmin (${params.Jmin}), and Jmin < MTU (${mtu})`);
+        }
+        // S1 ≤ (mtu - 148) and in the range from 15 to 150
+        if (!(params.S1 <= (mtu - 148) && params.S1 >= 15 && params.S1 <= 150)) {
+            errors.push(`S1 (${params.S1}) must be in [15, 150] and ≤ (MTU - 148) (${mtu - 148})`);
+        }
+        // S2 ≤ (mtu - 92) and in the range from 15 to 150
+        if (!(params.S2 <= (mtu - 92) && params.S2 >= 15 && params.S2 <= 150)) {
+            errors.push(`S2 (${params.S2}) must be in [15, 150] and ≤ (MTU - 92) (${mtu - 92})`);
+        }
+        // S1 + 56 ≠ S2
+        if (params.S1 + 56 === params.S2) {
+            errors.push(`S1 + 56 (${params.S1 + 56}) must not equal S2 (${params.S2})`);
+        }
+
+        return errors;
+    }
+
     validateForm() {
         let isValid = true;
 
@@ -230,7 +257,7 @@ class AmneziaApp {
         this.hideError('portError');
         this.hideError('subnetError');
         this.hideError('mtuError');
-        this.hideError('dnsError'); // New DNS error
+        this.hideError('dnsError');
 
         // Validate name
         const nameElement = this.getElement('serverName');
@@ -293,7 +320,7 @@ class AmneziaApp {
         const portElement = this.getElement('serverPort');
         const subnetElement = this.getElement('serverSubnet');
         const mtuElement = this.getElement('serverMTU');
-        const dnsElement = this.getElement('serverDNS'); // New DNS element
+        const dnsElement = this.getElement('serverDNS');
 
         if (nameElement) {
             nameElement.addEventListener('input', () => {
@@ -348,7 +375,7 @@ class AmneziaApp {
         const portElement = this.getElement('serverPort');
         const subnetElement = this.getElement('serverSubnet');
         const mtuElement = this.getElement('serverMTU');
-        const dnsElement = this.getElement('serverDNS'); // New DNS element
+        const dnsElement = this.getElement('serverDNS');
         const obfuscationElement = this.getElement('enableObfuscation');
         const autoStartElement = this.getElement('autoStart');
 
@@ -356,8 +383,8 @@ class AmneziaApp {
             name: nameElement ? nameElement.value.trim() : 'New Server',
             port: portElement ? parseInt(portElement.value) : 51820,
             subnet: subnetElement ? subnetElement.value : '10.0.0.0/24',
-            mtu: mtuElement ? parseInt(mtuElement.value) : 1280,
-            dns: dnsElement ? dnsElement.value.trim() : '8.8.8.8,1.1.1.1', // New DNS field
+            mtu: mtuElement ? parseInt(mtuElement.value) : 1420,
+            dns: dnsElement ? dnsElement.value.trim() : '8.8.8.8,1.1.1.1',
             obfuscation: obfuscationElement ? obfuscationElement.checked : true,
             auto_start: autoStartElement ? autoStartElement.checked : true
         };
@@ -376,8 +403,16 @@ class AmneziaApp {
                 H2: parseInt(this.getElement('paramH2')?.value || '2000'),
                 H3: parseInt(this.getElement('paramH3')?.value || '3000'),
                 H4: parseInt(this.getElement('paramH4')?.value || '4000'),
-                MTU: formData.mtu
             };
+
+            const obfErrors = this.validateObfuscationParamsJS(formData.obfuscation_params, formData.mtu);
+            if (obfErrors.length > 0) {
+                // You can display all errors in a single error element, or one by one
+                this.showError('obfuscationError', obfErrors.join(' '));
+                return;
+            } else {
+                this.hideError('obfuscationError');
+            }
         }
 
         // Disable button and show loading
@@ -984,12 +1019,11 @@ class AmneziaApp {
                 this.updateConfigTypeLabel();
             }
             
-            // Generate larger QR code from clean config
+            // Generate QR code from clean config
             const qrContainer = document.getElementById('qrcode');
             if (qrContainer) {
                 qrContainer.innerHTML = ''; // Clear any existing QR code
                 
-                // Create larger QR code
                 new QRCode(qrContainer, {
                     text: this.currentCleanConfig,
                     width: 300,

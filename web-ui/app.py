@@ -195,19 +195,25 @@ class AmneziaManager:
         except:
             return base64.b64encode(os.urandom(32)).decode('utf-8')
 
-    def generate_obfuscation_params(self):
-        """Generate obfuscation parameters according to AmneziaWG specs"""
+    def generate_obfuscation_params(self, mtu=1420):
+        import random
+        S1 = random.randint(15, min(150, mtu - 148))
+        # S2 must not be S1+56
+        s2_candidates = [s for s in range(15, min(150, mtu - 92) + 1) if s != S1 + 56]
+        S2 = random.choice(s2_candidates)
+        Jmin = random.randint(4, mtu - 2)
+        Jmax = random.randint(Jmin + 1, mtu)
         return {
-            "Jc": random.randint(4, 12),          # 4-12 recommended
-            "Jmin": 8,                            # Recommended value
-            "Jmax": 80,                           # Recommended value
-            "S1": random.randint(15, 150),        # 15-150 recommended
-            "S2": random.randint(15, 150),        # 15-150 recommended
-            "H1": random.randint(10000, 100000),  # Unique values
-            "H2": random.randint(100000, 200000), # Unique values
-            "H3": random.randint(200000, 300000), # Unique values
-            "H4": random.randint(300000, 400000), # Unique values
-            "MTU": 1420                           # Standard MTU
+            "Jc": random.randint(4, 12),
+            "Jmin": Jmin,
+            "Jmax": Jmax,
+            "S1": S1,
+            "S2": S2,
+            "H1": random.randint(10000, 100000),
+            "H2": random.randint(100000, 200000),
+            "H3": random.randint(200000, 300000),
+            "H4": random.randint(300000, 400000),
+            "MTU": mtu
         }
 
     def create_wireguard_server(self, server_data):
@@ -250,8 +256,13 @@ class AmneziaManager:
         # Generate server keys
         server_keys = self.generate_wireguard_keys()
 
-        # Generate obfuscation parameters if enabled
-        obfuscation_params = self.generate_obfuscation_params() if enable_obfuscation else None
+        # Generate and use provided obfuscation parameters if enabled
+        obfuscation_params = None
+        if enable_obfuscation:
+            if 'obfuscation_params' in server_data:
+                obfuscation_params = server_data['obfuscation_params']
+            else:
+                obfuscation_params = self.generate_obfuscation_params(mtu)
 
         # Parse subnet for server IP
         subnet_parts = subnet.split('/')
@@ -270,8 +281,6 @@ MTU = {mtu}
 
         # Add obfuscation parameters if enabled
         if enable_obfuscation and obfuscation_params:
-            # Update MTU in obfuscation params with user value
-            obfuscation_params['MTU'] = mtu
 
             server_config_content += f"""Jc = {obfuscation_params['Jc']}
 Jmin = {obfuscation_params['Jmin']}

@@ -12,12 +12,11 @@ All server configuration is done via web interface or via API endpoints. Providi
 
 *   **Web-based Management**: Intuitive UI for managing VPN servers and clients
 *   **AmneziaWG Integration**: Full support for AmneziaWG's obfuscation features
-*   **Multiple Protocols**: Support for WireGuard with traffic obfuscation
 *   **Client Management**: Generate and download client configurations
 *   **Real-time Monitoring**: Live server status and connection monitoring
 *   **Auto-start**: Automatic server startup on container restart
 *   **IPTables Automation**: Automatic firewall configuration
-*   **Custom MTU**: Configurable MTU settings (1280-1440)
+*   **Custom values**: MTU and other connection settings can be customized
 *   **QR code**: Client can be viewed, copied and downloaded via text, file or QR code
 *   **Config view**: Both servers' and clients' configs can be viewed directly from UI
 *   **Auto SSL support**: Automatic SSL cert deployment with certbot
@@ -204,7 +203,7 @@ services:
     build: .
     container_name: amnezia-web-ui
     ports:
-      - "80:80/tcp"
+      - "8080:8080/tcp"
       - "51820:51820/udp"
     environment:
       - NGINX_PORT=8080

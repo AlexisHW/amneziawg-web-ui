@@ -8,17 +8,21 @@ RUN apk update && apk add \
     supervisor \
     curl \
     apache2-utils \
+    certbot \
+    certbot-nginx \
+    iptables-legacy \
     && rm -rf /var/cache/apk/*
 
 RUN pip3 install flask flask_socketio flask-wtf requests python-socketio eventlet --break-system-packages
 
-RUN mkdir -p /app/web-ui /var/log/supervisor /var/log/webui /var/log/amnezia /var/log/nginx /etc/amnezia/amneziawg
+RUN mkdir -p /app/web-ui /var/log/supervisor /var/log/webui /var/log/amnezia /var/log/nginx /etc/amnezia/amneziawg /etc/letsencrypt /var/www/le
 
 COPY web-ui /app/web-ui/
 
 RUN mkdir -p /run/nginx
-COPY config/nginx.conf /etc/nginx/http.d/default.conf
+COPY config/nginx/ /etc/nginx/http.d/
 COPY config/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+COPY config/cli.ini /etc/letsencrypt/cli.ini
 
 COPY scripts/ /app/scripts/
 RUN chmod +x /app/scripts/*.sh

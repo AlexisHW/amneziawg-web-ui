@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## Version 1.4.0 - SSL support
+
+### New Features
+
+- SSL certificate generation at start and regular renewal support. Check [README.md](README.md).
+- iptables-legacy support: if nft-iptables are not detected on host, then legacy iptables-legacy is set as default for running iptables command.
+
 ## Version 1.3.2 - obfuscation adjustment
 
 ### Fix

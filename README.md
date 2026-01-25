@@ -20,6 +20,7 @@ All server configuration is done via web interface or via API endpoints. Providi
 *   **Custom MTU**: Configurable MTU settings (1280-1440)
 *   **QR code**: Client can be viewed, copied and downloaded via text, file or QR code
 *   **Config view**: Both servers' and clients' configs can be viewed directly from UI
+*   **Auto SSL support**: Automatic SSL cert deployment with certbot
 
 ## 🏗️ Architecture
 
@@ -190,6 +191,8 @@ Official docker image repository: https://hub.docker.com/r/alexishw/amneziawg-we
 | `DEFAULT_SUBNET` | `10.0.0.0/24` | Default subnet for new servers. Effective only for api requests. For UI management set via UI. |
 | `DEFAULT_PORT` | `51820` | Default port for new servers. Effective only for api requests. For UI management set via UI. |
 | `DEFAULT_DNS` | `8.8.8.8,1.1.1.1` | Default DNS servers for clients. Effective only for api requests. For UI management set via UI. |
+| `SSL_EMAIL` | `-` | Email used to register Let's encrypt account
+| `SSL_DOMAIN` | `-` | Domain used for SSL cert generation by certbot
 
 ### Docker Compose Example
 
@@ -239,6 +242,7 @@ docker run -d \
   --sysctl net.ipv6.conf.default.forwarding=1 \
   --device /dev/net/tun \
   --restart unless-stopped \
+  -p 80:80 \
   -p 9090:9090 \
   -p 51821:51821/udp \
   -e NGINX_PORT=9090 \
@@ -248,9 +252,24 @@ docker run -d \
   -e DEFAULT_SUBNET=10.8.0.0/24 \
   -e DEFAULT_PORT=51821 \
   -e DEFAULT_DNS="8.8.8.8,8.8.4.4" \
+  -e SSL_EMAIL="your@email.com" \
+  -e SSL_DOMAIN="your.domain.com" \
   -v amnezia-data:/etc/amnezia \
+  -v ssl:/etc/letsencrypt \
   alexishw/amneziawg-web-ui:master
 ```
+
+## SSL certificates issue
+
+When `SSL_EMAIL` and `SSL_DOMAIN` are specified, certbot requests certificate for a domain provided at docker container run.
+For this purpose you additionally need to expose `port 80`. It provides access only to the `/.well-known` endpoint, so there is no additional security risk introduced.
+You can't use a single port 80 both for the application and for SSL deployment: if wish to use ssl, set the custom port for the app.
+
+You can check if the certificate was issued by checking docker logs at start or by viewing `/var/log/letsencrypt/letsencrypt.log` inside the container.
+Cronjob to renew a certificate is also automatically created that runs every Tuesday.
+
+If you wish to keep the issued certificate after container recreation, you need mount container folder to a host:
+`/etc/letsencrypt` or` /etc/letsencrypt/live`.
 
 ## 📊 Obfuscation Parameters
 

@@ -22,6 +22,14 @@ if [ -n "$NGINX_PORT" ] && [ "$NGINX_PORT" != "80" ]; then
     sed -i "1,/listen 80;/ s/listen 80;/listen $NGINX_PORT;/" $NGINX_CONFIG_FILE
 fi
 
+if [ -n "$IP_LIST" ]; then
+    ALLOW_RULES=$(echo "$IP_LIST" | tr -d '[:space:]' | tr ',' '\n' | awk 'NF {printf "        allow %s;\\n", $0}')
+    ALLOW_RULES="${ALLOW_RULES}        deny all;"
+
+    sed -i "/# ALLOW_RULES_START/,/# ALLOW_RULES_END/c\        # ALLOW_RULES_START\\n${ALLOW_RULES}\\n        # ALLOW_RULES_END" $NGINX_CONFIG_FILE
+    echo "Nginx allow rules set: ${ALLOW_RULES}"
+fi
+
 : "${NGINX_USER:=admin}"
 : "${NGINX_PASSWORD:=changeme}"
 htpasswd -bc /etc/nginx/.htpasswd "$NGINX_USER" "$NGINX_PASSWORD"

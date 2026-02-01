@@ -192,6 +192,7 @@ Official docker image repository: https://hub.docker.com/r/alexishw/amneziawg-we
 | `DEFAULT_DNS` | `8.8.8.8,1.1.1.1` | Default DNS servers for clients. Effective only for api requests. For UI management set via UI. |
 | `SSL_EMAIL` | `-` | Email used to register Let's encrypt account
 | `SSL_DOMAIN` | `-` | Domain used for SSL cert generation by certbot
+| `IP_LIST` | `-` | A list of IP addresses or IP ranges to allow connections from.
 
 ### Docker Compose Example
 
@@ -270,6 +271,19 @@ Cronjob to renew a certificate is also automatically created that runs every Tue
 
 If you wish to keep the issued certificate during container recreation, you need to mount container folder to a host:
 `/etc/letsencrypt` or` /etc/letsencrypt/live`.
+
+> [!NOTE]
+> If you enable SSL support and want to have healthcheck continue working properly, you need to provide a https healthcheck URL at docker container start:
+> `--health-cmd='curl -f https://localhost:$NGINX_PORT/status || exit 1'`
+
+## Protection by IP address
+
+You can protect your webserver by limiting connections to the it through the list of IP address(es) and IP range(s). To enable it you need to provide env variable `IP_LIST` at docker container run, e.g.
+`-e IP_LIST="100.200.101.201, 50.100.10.0/24"`
+
+> [!NOTE]
+> Take a note that in case you enable SSL for your server, you have to allow Let's Encrypt IP ranges. Here is a known CIDR used by Let's Encrypt, though is may vary country by country:
+`23.178.112.0/24`
 
 ## 📊 Obfuscation Parameters
 
@@ -376,8 +390,7 @@ The app is exposed directly on 80 or custom port with basic authentication.
 
 By default, docker image is built with user `admin` and password `changeme`. To change the default behavior you need to provide with docker envs `NGINX_USER` and `NGINX_PASSWORD`.
 
-> [!NOTE]
-> There is no possibility to protect the built-in nginx with allow ip rule, because when run in docker with bridge mode docker doesn't pass the real client ip into the container. External proxy or additional container is required to perform client ip check.
+I recommend enabling IP limitation together with other protection methods (see section `Protection by IP address` above).
 
 # Support
 The NO support provided as well as no regular updates are planned. Found issues can be fixed if free time permits.

@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## Version 1.4.1 - IP range support
+
+### New Features
+
+- Now it's possible to limit connections to the web server with a IP range(s). Connections from the not allowed IP address will immediately get 403 reply.
+
 ## Version 1.4.0 - SSL support
 
 ### New Features

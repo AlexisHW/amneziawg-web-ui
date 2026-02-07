@@ -20,6 +20,7 @@ All server configuration is done via web interface or via API endpoints. Providi
 *   **QR code**: Client can be viewed, copied and downloaded via text, file or QR code
 *   **Config view**: Both servers' and clients' configs can be viewed directly from UI
 *   **Auto SSL support**: Automatic SSL cert deployment with certbot
+*   **AWG 1.5 support**: I1-I5 values can be customized
 
 ## 🏗️ Architecture
 

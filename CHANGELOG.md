@@ -1,5 +1,13 @@
 # CHANGELOG
 
+## Version 1.5.0 - AWG 1.5 support
+
+### New Features
+
+- Added capability to configure I1-I5 settings for existing and new clients. This is a client-only configuration. In case awg 1.5 support is enabled but I-values are not provided, then only I1 default setting is applied which is recommended by AWG developers.
+
+# CHANGELOG
+
 ## Version 1.4.1 - IP range support
 
 ### New Features

@@ -11,6 +11,7 @@ class AmneziaApp {
             this.setupEventListeners();
             this.setupSocketIO();
             this.loadInitialData();
+            this.loadDefaultISettings();
         });
     }
 
@@ -521,6 +522,7 @@ class AmneziaApp {
         fetch('/api/servers')
             .then(response => response.json())
             .then(servers => {
+                this.servers = servers; // Store for later use
                 this.renderServers(servers);
             })
             .catch(error => {
@@ -598,6 +600,8 @@ class AmneziaApp {
             <div class="space-y-2">
                 ${clients.map(client => {
                     const clientTraffic = traffic[client.id] || {received: '0 B', sent: '0 B'};
+                    const hasISettings = client.apply_i_settings || false;
+                    
                     return `
                     <div class="flex justify-between items-center bg-gray-50 p-3 rounded-lg hover:bg-gray-100 transition-colors duration-200">
                         <div class="flex items-center">
@@ -609,12 +613,21 @@ class AmneziaApp {
                             <div class="flex items-center space-x-2">
                                 <span class="font-medium">${client.name}</span>
                                 <span class="text-sm text-gray-600 ml-2">${client.client_ip}</span>
+                                ${hasISettings ? '<span class="text-xs bg-purple-100 text-purple-800 px-2 py-1 rounded-full ml-2">I-settings</span>' : ''}
                                 <span class="text-xs text-gray-500 ml-6" style="margin-left: 0.5cm;">
                                     ⬇️ ${clientTraffic.received} &nbsp; ⬆️ ${clientTraffic.sent}
                                 </span>
                             </div>
                         </div>
                         <div class="flex space-x-2">
+                            <button onclick="amneziaApp.editClient('${serverId}', '${client.id}')"
+                                    class="bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 shadow hover:shadow-md flex items-center"
+                                    title="Edit Client">
+                                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                                </svg>
+                                Edit
+                            </button>
                             <button onclick="amneziaApp.showClientQRCode('${serverId}', '${client.id}', '${client.name}')"
                                     class="bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 shadow hover:shadow-md flex items-center"
                                     title="Show QR Code">
@@ -711,22 +724,289 @@ class AmneziaApp {
             });
     }
 
-    addClient(serverId) {
-        const clientName = prompt('Enter client name:');
-        if (clientName) {
-            fetch(`/api/servers/${serverId}/clients`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ name: clientName })
+    showClientModal(serverId, client = null) {
+        const modalTitle = client ? 'Edit Client' : 'Add New Client';
+        const clientName = client ? client.name : '';
+        const applyISettings = client ? (client.apply_i_settings || false) : false;
+        const iSettings = client ? (client.i_settings || {}) : {};
+        
+        // Get default I values from server info
+        fetch(`/api/servers/${serverId}/info`)
+            .then(response => response.json())
+            .then(serverInfo => {
+                this.showClientModalWithDefaults(serverId, modalTitle, clientName, applyISettings, iSettings, serverInfo.default_i_settings || {}, client);
             })
-            .then(() => this.loadServers())
             .catch(error => {
-                console.error('Error adding client:', error);
-                alert('Error adding client: ' + error.message);
+                console.error('Error fetching server info:', error);
+                // Show modal without defaults if fetch fails
+                this.showClientModalWithDefaults(serverId, modalTitle, clientName, applyISettings, iSettings, {}, client);
+            });
+    }
+
+    showClientModalWithDefaults(serverId, modalTitle, clientName, applyISettings, iSettings, defaultISettings, client) {
+        // Create modal HTML with I-settings
+        const modalHtml = `
+            <div id="clientModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center">
+                <div class="relative p-8 border w-11/12 md:w-3/4 lg:w-2/3 xl:w-1/2 shadow-2xl rounded-2xl bg-white">
+                    <div class="flex flex-col">
+                        <div class="flex justify-between items-center w-full mb-6">
+                            <h3 class="text-xl font-bold text-gray-900">${modalTitle}</h3>
+                            <button onclick="amneziaApp.closeClientModal()"
+                                    class="text-gray-400 hover:text-gray-600 transition-colors duration-200 p-1 rounded-full hover:bg-gray-100">
+                                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                </svg>
+                            </button>
+                        </div>
+                        
+                        <form id="clientForm" class="space-y-6">
+                            <input type="hidden" id="serverId" value="${serverId}">
+                            <input type="hidden" id="clientId" value="${client ? client.id : ''}">
+                            
+                            <div>
+                                <label for="clientName" class="block text-sm font-medium text-gray-700 mb-2">
+                                    Client Name
+                                </label>
+                                <input type="text" id="clientName" value="${clientName}"
+                                    class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                                    required>
+                            </div>
+                            
+                            <div class="pt-4 border-t border-gray-200">
+                                <div class="flex items-center mb-4">
+                                    <input type="checkbox" id="applyISettings"
+                                        ${applyISettings ? 'checked' : ''}
+                                        class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
+                                    <label for="applyISettings" class="ml-3 block text-sm font-medium text-gray-700">
+                                        Apply I-settings (AmneziaWG 1.5 protocol)
+                                    </label>
+                                </div>
+                                <p class="text-sm text-gray-500 mb-4">
+                                    Enable I1-I5 protocol settings for this client. If left empty, server defaults will be used.
+                                </p>
+                                
+                                <div id="iSettingsSection" style="display: ${applyISettings ? 'block' : 'none'};"
+                                    class="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200 space-y-4">
+                                    <h4 class="text-sm font-medium text-gray-700 mb-3">I-settings (Optional - override server defaults)</h4>
+                                    
+                                    <div>
+                                        <label for="i1" class="block text-sm font-medium text-gray-700 mb-1">
+                                            I1 (Required if using I-settings):
+                                        </label>
+                                        <input type="text" id="i1" value="${iSettings.i1 || ''}"
+                                            class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                                            placeholder="${defaultISettings.i1 ? 'Server default: ' + defaultISettings.i1.substring(0, 50) + '...' : 'Leave empty to skip'}">
+                                        <p class="text-xs text-gray-500 mt-1">
+                                            If I1 is empty, all I-settings will be ignored.
+                                        </p>
+                                    </div>
+                                    
+                                    <div>
+                                        <label for="i2" class="block text-sm font-medium text-gray-700 mb-1">
+                                            I2 (Optional):
+                                        </label>
+                                        <input type="text" id="i2" value="${iSettings.i2 || ''}"
+                                            class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                                            placeholder="${defaultISettings.i2 ? 'Server default: ' + defaultISettings.i2.substring(0, 50) + '...' : 'Leave empty to skip'}">
+                                    </div>
+                                    
+                                    <div>
+                                        <label for="i3" class="block text-sm font-medium text-gray-700 mb-1">
+                                            I3 (Optional):
+                                        </label>
+                                        <input type="text" id="i3" value="${iSettings.i3 || ''}"
+                                            class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                                            placeholder="${defaultISettings.i3 ? 'Server default: ' + defaultISettings.i3.substring(0, 50) + '...' : 'Leave empty to skip'}">
+                                    </div>
+                                    
+                                    <div>
+                                        <label for="i4" class="block text-sm font-medium text-gray-700 mb-1">
+                                            I4 (Optional):
+                                        </label>
+                                        <input type="text" id="i4" value="${iSettings.i4 || ''}"
+                                            class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                                            placeholder="${defaultISettings.i4 ? 'Server default: ' + defaultISettings.i4.substring(0, 50) + '...' : 'Leave empty to skip'}">
+                                    </div>
+                                    
+                                    <div>
+                                        <label for="i5" class="block text-sm font-medium text-gray-700 mb-1">
+                                            I5 (Optional):
+                                        </label>
+                                        <input type="text" id="i5" value="${iSettings.i5 || ''}"
+                                            class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                                            placeholder="${defaultISettings.i5 ? 'Server default: ' + defaultISettings.i5.substring(0, 50) + '...' : 'Leave empty to skip'}">
+                                    </div>
+                                    
+                                    <div class="p-3 bg-blue-50 border border-blue-200 rounded-md">
+                                        <p class="text-xs text-blue-700">
+                                            <strong>Note:</strong> I-settings are client-only parameters. Empty values are omitted from generated configs.<br>
+                                            If config becomes too large for QR code, use "Download Config File" instead.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="flex justify-end space-x-4 w-full pt-6 border-t border-gray-200">
+                                <button type="button" onclick="amneziaApp.closeClientModal()"
+                                        class="bg-gray-500 text-white px-6 py-3 rounded-xl text-sm font-medium hover:bg-gray-600 transition-colors duration-200">
+                                    Cancel
+                                </button>
+                                <button type="submit"
+                                        class="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white px-6 py-3 rounded-xl text-sm font-medium transition-all duration-200 shadow hover:shadow-lg">
+                                    ${client ? 'Update Client' : 'Add Client'}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // Close any existing modal first
+        this.closeClientModal();
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+        
+        // Setup form submission
+        const form = document.getElementById('clientForm');
+        if (form) {
+            form.addEventListener('submit', (e) => {
+                e.preventDefault();
+                this.saveClient();
             });
         }
+        
+        // Setup I-settings toggle
+        const applyISettingsCheckbox = document.getElementById('applyISettings');
+        if (applyISettingsCheckbox) {
+            applyISettingsCheckbox.addEventListener('change', (e) => {
+                const iSettingsSection = document.getElementById('iSettingsSection');
+                if (iSettingsSection) {
+                    iSettingsSection.style.display = e.target.checked ? 'block' : 'none';
+                }
+            });
+        }
+    }
+
+    closeClientModal() {
+        const existingModal = document.getElementById('clientModal');
+        if (existingModal) {
+            existingModal.remove();
+        }
+    }
+
+    saveClient() {
+        const serverId = document.getElementById('serverId').value;
+        const clientId = document.getElementById('clientId').value;
+        const clientName = document.getElementById('clientName').value.trim();
+        const applyISettings = document.getElementById('applyISettings').checked;
+        
+        if (!clientName) {
+            this.showTempMessage('Client name is required', 'error');
+            return;
+        }
+        
+        const data = {
+            name: clientName,
+            apply_i_settings: applyISettings
+        };
+        
+        // Collect I-settings if checkbox is checked
+        if (applyISettings) {
+            const iSettings = {};
+            for (let i = 1; i <= 5; i++) {
+                const input = document.getElementById(`i${i}`);
+                if (input) {
+                    const value = input.value.trim();
+                    if (value) {
+                        iSettings[`i${i}`] = value;
+                    }
+                }
+            }
+            
+            // Always include i_settings object, even if empty
+            // Backend will use defaults when i_settings is empty but apply_i_settings=True
+            data.i_settings = iSettings;
+        }
+        
+        console.log('Saving client with data:', data);
+        
+        let url, method;
+        
+        if (clientId) {
+            // Update existing client - use the i-settings endpoint
+            url = `/api/servers/${serverId}/clients/${clientId}/i-settings`;
+            method = 'PUT';
+        } else {
+            // Create new client
+            url = `/api/servers/${serverId}/clients`;
+            method = 'POST';
+        }
+        
+        fetch(url, {
+            method: method,
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(data)
+        })
+        .then(response => response.json())
+        .then(result => {
+            if (result.error) {
+                throw new Error(result.error);
+            }
+            this.showTempMessage(clientId ? 'Client updated successfully!' : 'Client added successfully!', 'success');
+            this.closeClientModal();
+            this.loadServers();
+        })
+        .catch(error => {
+            console.error('Error saving client:', error);
+            this.showTempMessage(`Error saving client: ${error.message}`, 'error');
+        });
+    }
+
+    addClient(serverId) {
+        this.showClientModal(serverId);
+    }
+
+    editClient(serverId, clientId) {
+        // Find the client in the loaded servers data
+        const server = this.servers?.find(s => s.id === serverId);
+        if (server) {
+            const client = server.clients?.find(c => c.id === clientId);
+            if (client) {
+                this.showClientModal(serverId, client);
+                return;
+            }
+        }
+        
+        // If not found in loaded data, fetch it
+        fetch(`/api/servers/${serverId}/info`)
+            .then(response => response.json())
+            .then(serverInfo => {
+                const client = serverInfo.clients?.find(c => c.id === clientId);
+                if (client) {
+                    this.showClientModal(serverId, client);
+                } else {
+                    this.showTempMessage('Client not found', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching client:', error);
+                this.showTempMessage('Error loading client: ' + error.message, 'error');
+            });
+    }
+
+    loadDefaultISettings() {
+        fetch('/api/default-i-settings')
+            .then(response => response.json())
+            .then(data => {
+                this.defaultISettings = data;
+                console.log('Default I-settings loaded:', Object.keys(data));
+            })
+            .catch(error => {
+                console.error('Error loading default I-settings:', error);
+                this.defaultISettings = {};
+            });
     }
 
     downloadClientConfig(serverId, clientId) {
@@ -818,6 +1098,25 @@ class AmneziaApp {
                                     </div>
                                 `).join('')}
                             </div>
+                        </div>
+                        ` : ''}
+
+                        ${serverInfo.default_i_settings ? `
+                        <div class="bg-purple-50 p-3 rounded mb-4">
+                            <h4 class="font-semibold text-sm text-purple-700 mb-2">Default I-settings (AmneziaWG 1.5)</h4>
+                            <div class="grid grid-cols-2 md:grid-cols-5 gap-2 text-xs">
+                                ${Object.entries(serverInfo.default_i_settings).map(([key, value]) => `
+                                    <div class="text-center">
+                                        <div class="font-medium">${key}</div>
+                                        <div class="font-mono truncate" title="${value}">
+                                            ${value ? value.substring(0, 20) + '...' : 'empty'}
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                            <p class="text-xs text-purple-600 mt-2">
+                                These defaults are used for new clients when "Apply I-settings" is enabled.
+                            </p>
                         </div>
                         ` : ''}
 

@@ -36,6 +36,12 @@ CONFIG_FILE = os.path.join(CONFIG_DIR, 'web_config.json')
 PUBLIC_IP_SERVICE = 'http://ifconfig.me'
 ENABLE_OBFUSCATION = True
 
+DEFAULT_I1 = "<b 0xc70000000108ce1bf31eec7d93360000449e227e4596ed7f75c4d35ce31880b4133107c822c6355b51f0d7c1bba96d5c210a48aca01885fed0871cfc37d59137d73b506dc013bb4a13c060ca5b04b7ae215af71e37d6e8ff1db235f9fe0c25cb8b492471054a7c8d0d6077d430d07f6e87a8699287f6e69f54263c7334a8e144a29851429bf2e350e519445172d36953e96085110ce1fb641e5efad42c0feb4711ece959b72cc4d6f3c1e83251adb572b921534f6ac4b10927167f41fe50040a75acef62f45bded67c0b45b9d655ce374589cad6f568b8475b2e8921ff98628f86ff2eb5bcce6f3ddb7dc89e37c5b5e78ddc8d93a58896e530b5f9f1448ab3b7a1d1f24a63bf981634f6183a21af310ffa52e9ddf5521561760288669de01a5f2f1a4f922e68d0592026bbe4329b654d4f5d6ace4f6a23b8560b720a5350691c0037b10acfac9726add44e7d3e880ee6f3b0d6429ff33655c297fee786bb5ac032e48d2062cd45e305e6d8d8b82bfbf0fdbc5ec09943d1ad02b0b5868ac4b24bb10255196be883562c35a713002014016b8cc5224768b3d330016cf8ed9300fe6bf39b4b19b3667cddc6e7c7ebe4437a58862606a2a66bd4184b09ab9d2cd3d3faed4d2ab71dd821422a9540c4c5fa2a9b2e6693d411a22854a8e541ed930796521f03a54254074bc4c5bca152a1723260e7d70a24d49720acc544b41359cfc252385bda7de7d05878ac0ea0343c77715e145160e6562161dfe2024846dfda3ce99068817a2418e66e4f37dea40a21251c8a034f83145071d93baadf050ca0f95dc9ce2338fb082d64fbc8faba905cec66e65c0e1f9b003c32c943381282d4ab09bef9b6813ff3ff5118623d2617867e25f0601df583c3ac51bc6303f79e68d8f8de4b8363ec9c7728b3ec5fcd5274edfca2a42f2727aa223c557afb33f5bea4f64aeb252c0150ed734d4d8eccb257824e8e090f65029a3a042a51e5cc8767408ae07d55da8507e4d009ae72c47ddb138df3cab6cc023df2532f88fb5a4c4bd917fafde0f3134be09231c389c70bc55cb95a779615e8e0a76a2b4d943aabfde0e394c985c0cb0376930f92c5b6998ef49ff4a13652b787503f55c4e3d8eebd6e1bc6db3a6d405d8405bd7a8db7cefc64d16e0d105a468f3d33d29e5744a24c4ac43ce0eb1bf6b559aed520b91108cda2de6e2c4f14bc4f4dc58712580e07d217c8cca1aaf7ac04bab3e7b1008b966f1ed4fba3fd93a0a9d3a27127e7aa587fbcc60d548300146bdc126982a58ff5342fc41a43f83a3d2722a26645bc961894e339b953e78ab395ff2fb854247ad06d446cc2944a1aefb90573115dc198f5c1efbc22bc6d7a74e41e666a643d5f85f57fde81b87ceff95353d22ae8bab11684180dd142642894d8dc34e402f802c2fd4a73508ca99124e428d67437c871dd96e506ffc39c0fc401f666b437adca41fd563cbcfd0fa22fbbf8112979c4e677fb533d981745cceed0fe96da6cc0593c430bbb71bcbf924f70b4547b0bb4d41c94a09a9ef1147935a5c75bb2f721fbd24ea6a9f5c9331187490ffa6d4e34e6bb30c2c54a0344724f01088fb2751a486f425362741664efb287bce66c4a544c96fa8b124d3c6b9eaca170c0b530799a6e878a57f402eb0016cf2689d55c76b2a91285e2273763f3afc5bc9398273f5338a06d>"
+DEFAULT_I2 = ""
+DEFAULT_I3 = ""
+DEFAULT_I4 = ""
+DEFAULT_I5 = ""
+
 print(f"Base directory: {BASE_DIR}")
 print(f"Template directory: {TEMPLATE_DIR}")
 print(f"Static directory: {STATIC_DIR}")
@@ -382,8 +388,8 @@ H4 = {obfuscation_params['H4']}
         self.save_config()
         return True
 
-    def add_wireguard_client(self, server_id, client_name):
-        """Add a client to a WireGuard server"""
+    def add_wireguard_client(self, server_id, client_name, apply_i_settings=False, i_settings=None):
+        """Add a client to a WireGuard server with optional I-settings"""
         server = next((s for s in self.config['servers'] if s['id'] == server_id), None)
         if not server:
             return None
@@ -396,6 +402,25 @@ H4 = {obfuscation_params['H4']}
 
         # Assign client IP
         client_ip = self.get_client_ip(server, len(server['clients']))
+        
+        # Process I-settings
+        client_i_settings = {}
+        if apply_i_settings:
+            # Start with defaults
+            client_i_settings = {
+                'i1': DEFAULT_I1,
+                'i2': DEFAULT_I2,
+                'i3': DEFAULT_I3,
+                'i4': DEFAULT_I4,
+                'i5': DEFAULT_I5,
+            }
+            
+            # Override with provided values
+            if i_settings:
+                for i in range(1, 6):
+                    i_key = f'i{i}'
+                    if i_key in i_settings and i_settings[i_key]:
+                        client_i_settings[i_key] = i_settings[i_key]
 
         client_config = {
             "id": client_id,
@@ -409,7 +434,9 @@ H4 = {obfuscation_params['H4']}
             "preshared_key": preshared_key,
             "client_ip": client_ip,
             "obfuscation_enabled": server["obfuscation_enabled"],
-            "obfuscation_params": server["obfuscation_params"]
+            "obfuscation_params": server["obfuscation_params"],
+            "apply_i_settings": apply_i_settings,
+            "i_settings": client_i_settings
         }
 
         # Add client to server config
@@ -425,17 +452,17 @@ AllowedIPs = {client_ip}/32
         with open(server['config_path'], 'a') as f:
             f.write(client_peer_config)
 
+        # Add to server's clients list
         server["clients"].append(client_config)
 
-        # Store in global clients dict
-        self.config["clients"][client_id] = client_config
+        # Also add to global clients dict
+        self.config["clients"][client_id] = client_config.copy()
+        
         self.save_config()
         
         # Apply live config if server is running
         if server['status'] == 'running':
             self.apply_live_config(server['interface'])
-            
-        print(f"Client {client_config['name']} added")
 
         config_content = self.generate_wireguard_client_config(server, client_config, include_comments=True)
         return client_config, config_content
@@ -509,7 +536,7 @@ AllowedIPs = {client_ip}/32
             f.writelines(new_lines)
 
     def generate_wireguard_client_config(self, server, client_config, include_comments=True):
-        """Generate WireGuard client configuration"""
+        """Generate WireGuard client configuration with optional I-settings"""
         config = ""
         
         # Add comments only if requested
@@ -519,7 +546,6 @@ AllowedIPs = {client_ip}/32
 # Client: {client_config['name']}
 # Generated: {time.ctime()}
 # Server IP: {server['public_ip']}:{server['port']}
-
 """
 
         config += f"""[Interface]
@@ -530,7 +556,7 @@ MTU = {server['mtu']}
 """
 
         # Add obfuscation parameters if enabled
-        if client_config['obfuscation_enabled'] and client_config['obfuscation_params']:
+        if client_config.get('obfuscation_enabled', False) and client_config.get('obfuscation_params'):
             params = client_config['obfuscation_params']
             config += f"""Jc = {params['Jc']}
 Jmin = {params['Jmin']}
@@ -543,6 +569,17 @@ H3 = {params['H3']}
 H4 = {params['H4']}
 """
 
+        # Add I-settings if enabled and I1 is present
+        if client_config.get('apply_i_settings', False):
+            i_settings = client_config.get('i_settings', {})
+            i1_value = i_settings.get('i1', '')
+            
+            if i1_value:  # Only add I-settings if I1 is present
+                for i in range(1, 6):
+                    i_value = i_settings.get(f'i{i}', '')
+                    if i_value:  # Only add non-empty values
+                        config += f"I{i} = {i_value}\n"
+        
         config += f"""
 [Peer]
 PublicKey = {server['server_public_key']}
@@ -552,6 +589,63 @@ AllowedIPs = 0.0.0.0/0
 PersistentKeepalive = 25
 """
         return config
+    
+    def update_client_i_settings(self, server_id, client_id, apply_i_settings=None, i_settings=None):
+        """Update client I-settings"""
+        server = next((s for s in self.config['servers'] if s['id'] == server_id), None)
+        if not server:
+            return None, "Server not found"
+
+        # Find client in server's client list
+        client = None
+        for c in server["clients"]:
+            if c["id"] == client_id:
+                client = c
+                break
+        
+        if not client:
+            return None, "Client not found"
+        
+        # Update apply_i_settings if provided
+        if apply_i_settings is not None:
+            client['apply_i_settings'] = apply_i_settings
+            if client_id in self.config["clients"]:
+                self.config["clients"][client_id]['apply_i_settings'] = apply_i_settings
+        
+        # Process I-settings
+        if i_settings is not None:
+            new_i_settings = {}
+            
+            if apply_i_settings or client.get('apply_i_settings', False):
+                # Start with defaults
+                new_i_settings = {
+                    'i1': DEFAULT_I1,
+                    'i2': DEFAULT_I2,
+                    'i3': DEFAULT_I3,
+                    'i4': DEFAULT_I4,
+                    'i5': DEFAULT_I5,
+                }
+                
+                # Override with provided values
+                for i in range(1, 6):
+                    i_key = f'i{i}'
+                    if i_key in i_settings and i_settings[i_key]:
+                        new_i_settings[i_key] = i_settings[i_key]
+                    elif client.get('i_settings', {}).get(i_key):
+                        # Keep existing value
+                        new_i_settings[i_key] = client['i_settings'][i_key]
+            
+            # Update both client objects
+            client['i_settings'] = new_i_settings
+            if client_id in self.config["clients"]:
+                self.config["clients"][client_id]['i_settings'] = new_i_settings.copy()
+        
+        self.save_config()
+        
+        # Regenerate config
+        config_content = self.generate_wireguard_client_config(server, client, include_comments=True)
+        
+        return client, config_content
 
     def setup_iptables(self, interface, subnet):
         """Setup iptables rules for WireGuard interface"""
@@ -678,9 +772,23 @@ PersistentKeepalive = 25
     def get_client_configs(self, server_id=None):
         """Get all client configs, optionally filtered by server"""
         if server_id:
-            return [client for client in self.config["clients"].values()
-                   if client.get("server_id") == server_id]
-        return list(self.config["clients"].values())
+            # Get from specific server
+            server = next((s for s in self.config['servers'] if s['id'] == server_id), None)
+            if server:
+                return server['clients']
+            return []
+        else:
+            # Get all clients from global dict
+            clients = []
+            for client_id, client in self.config["clients"].items():
+                # Ensure I-settings fields exist
+                client_copy = client.copy()
+                if 'apply_i_settings' not in client_copy:
+                    client_copy['apply_i_settings'] = False
+                if 'i_settings' not in client_copy:
+                    client_copy['i_settings'] = {}
+                clients.append(client_copy)
+            return clients
 
     def get_traffic_for_server(self, server_id):
         server = next((s for s in self.config['servers'] if s['id'] == server_id), None)
@@ -773,8 +881,10 @@ def get_server_clients(server_id):
 def add_client(server_id):
     data = request.json
     client_name = data.get('name', 'New Client')
+    apply_i_settings = data.get('apply_i_settings', False)
+    i_settings = data.get('i_settings', {})
 
-    result = amnezia_manager.add_wireguard_client(server_id, client_name)
+    result = amnezia_manager.add_wireguard_client(server_id, client_name, apply_i_settings, i_settings)
     if result:
         client_config, config_content = result
         return jsonify({
@@ -787,6 +897,23 @@ def add_client(server_id):
 def delete_client(server_id, client_id):
     if amnezia_manager.delete_client(server_id, client_id):
         return jsonify({"status": "deleted", "client_id": client_id})
+    return jsonify({"error": "Client not found"}), 404
+
+@app.route('/api/servers/<server_id>/clients/<client_id>/i-settings', methods=['PUT'])
+def update_client_i_settings(server_id, client_id):
+    data = request.json
+    apply_i_settings = data.get('apply_i_settings')
+    i_settings = data.get('i_settings', {})
+    
+    client, config_content = amnezia_manager.update_client_i_settings(
+        server_id, client_id, apply_i_settings, i_settings
+    )
+    
+    if client:
+        return jsonify({
+            "client": client,
+            "config": config_content
+        })
     return jsonify({"error": "Client not found"}), 404
 
 @app.route('/api/servers/<server_id>/clients/<client_id>/config')
@@ -898,7 +1025,7 @@ def download_server_config(server_id):
 
 @app.route('/api/servers/<server_id>/info')
 def get_server_info(server_id):
-    """Get detailed server information including config preview"""
+    """Get detailed server information including config preview and default I values"""
     server = next((s for s in amnezia_manager.config['servers'] if s['id'] == server_id), None)
     if not server:
         return jsonify({"error": "Server not found"}), 404
@@ -912,14 +1039,10 @@ def get_server_info(server_id):
     if os.path.exists(server['config_path']):
         try:
             with open(server['config_path'], 'r') as f:
-                # Read first 10 lines for preview
                 lines = f.readlines()
                 config_preview = ''.join(lines[:min(10, len(lines))])
         except:
             config_preview = "Unable to read config file"
-
-    # Ensure MTU is included (handle both old and new servers)
-    mtu_value = server.get('mtu', 1420)  # Default to 1420 if not set
 
     server_info = {
         "id": server['id'],
@@ -932,17 +1055,34 @@ def get_server_info(server_id):
         "public_ip": server['public_ip'],
         "server_ip": server['server_ip'],
         "subnet": server['subnet'],
-        "mtu": mtu_value,  # Make sure MTU is included
+        "mtu": server.get('mtu', 1420),
         "obfuscation_enabled": server['obfuscation_enabled'],
         "obfuscation_params": server.get('obfuscation_params', {}),
         "clients_count": len(server['clients']),
         "created_at": server['created_at'],
         "config_preview": config_preview,
         "public_key": server['server_public_key'],
-        "dns": server['dns']
+        "dns": server['dns'],
+        "default_i_settings": {
+            "i1": DEFAULT_I1,
+            "i2": DEFAULT_I2,
+            "i3": DEFAULT_I3,
+            "i4": DEFAULT_I4,
+            "i5": DEFAULT_I5
+        }
     }
 
     return jsonify(server_info)
+
+@app.route('/api/default-i-settings', methods=['GET'])
+def get_default_i_settings():
+    return jsonify({
+        "i1": DEFAULT_I1,
+        "i2": DEFAULT_I2,
+        "i3": DEFAULT_I3,
+        "i4": DEFAULT_I4,
+        "i5": DEFAULT_I5
+    })
 
 @app.route('/api/servers', methods=['GET'])
 def get_servers():

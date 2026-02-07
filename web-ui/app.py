@@ -463,6 +463,8 @@ AllowedIPs = {client_ip}/32
         # Apply live config if server is running
         if server['status'] == 'running':
             self.apply_live_config(server['interface'])
+            
+        print(f"Client {client_config['name']} added")
 
         config_content = self.generate_wireguard_client_config(server, client_config, include_comments=True)
         return client_config, config_content

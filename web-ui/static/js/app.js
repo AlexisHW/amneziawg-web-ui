@@ -599,7 +599,7 @@ class AmneziaApp {
             <h4 class="font-medium mb-2">Clients (${clients.length}):</h4>
             <div class="space-y-2">
                 ${clients.map(client => {
-                    const clientTraffic = traffic[client.id] || {received: '0 B', sent: '0 B'};
+                    const clientTraffic = traffic[client.id] || {received: '0 B rcv.', sent: '0 B snt.'};
                     const hasISettings = client.apply_i_settings || false;
                     
                     return `
@@ -615,7 +615,7 @@ class AmneziaApp {
                                 <span class="text-sm text-gray-600 ml-2">${client.client_ip}</span>
                                 ${hasISettings ? '<span class="text-xs bg-purple-100 text-purple-800 px-2 py-1 rounded-full ml-2">I-settings</span>' : ''}
                                 <span class="text-xs text-gray-500 ml-6" style="margin-left: 0.5cm;">
-                                    ⬇️ ${clientTraffic.received} &nbsp; ⬆️ ${clientTraffic.sent}
+                                    🔽 ${clientTraffic.received} &nbsp; 🔼 ${clientTraffic.sent}
                                 </span>
                             </div>
                         </div>
@@ -1200,7 +1200,6 @@ class AmneziaApp {
     }
 
     showClientQRCode(serverId, clientId, clientName) {
-        // Create modal for QR code
         const modalHtml = `
             <div id="qrModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center">
                 <div class="relative p-8 border w-11/12 md:w-3/4 lg:w-2/3 xl:w-1/2 shadow-2xl rounded-2xl bg-white">
@@ -1215,16 +1214,34 @@ class AmneziaApp {
                             </button>
                         </div>
                         
+                        <!-- QR Too Large Warning -->
+                        <div id="qrTooLargeWarning" class="mb-4 p-4 bg-yellow-50 border-l-4 border-yellow-400 hidden">
+                            <div class="flex">
+                                <div class="flex-shrink-0">
+                                    <svg class="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
+                                        <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+                                    </svg>
+                                </div>
+                                <div class="ml-3">
+                                    <p class="text-sm text-yellow-700">
+                                        <strong>Config too large for QR code!</strong><br>
+                                        The configuration exceeds QR code capacity. Please use "Download Config File" instead.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                        
                         <div class="flex flex-col lg:flex-row gap-8 mb-6">
                             <!-- Left side: QR Code -->
                             <div class="lg:w-2/5">
-                                <div class="bg-white p-6 rounded-xl border-2 border-gray-100 shadow-inner">
+                                <div id="qrCodeContainer" class="bg-white p-6 rounded-xl border-2 border-gray-100 shadow-inner">
                                     <div id="qrcode" class="flex justify-center mb-4"></div>
-                                    <p class="text-center text-sm text-gray-500">Scan with WireGuard app</p>
+                                    <p id="qrCodeText" class="text-center text-sm text-gray-500">Scan with AmneziaWG / AmneziaVPN app</p>
                                 </div>
                                 <!-- Download QR Code button outside the box -->
                                 <div class="mt-4 text-center">
                                     <button onclick="amneziaApp.downloadQRCode()"
+                                            id="downloadQRBtn"
                                             class="inline-flex items-center bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white px-5 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 shadow hover:shadow-lg transform hover:-translate-y-0.5">
                                         <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
@@ -1256,6 +1273,7 @@ class AmneziaApp {
                                         placeholder="Loading configuration..."></textarea>
                                     <div class="flex justify-between items-center mt-3">
                                         <span id="configType" class="text-xs font-medium text-blue-500">Clean Config</span>
+                                        <span id="configLength" class="text-xs text-gray-500"></span>
                                     </div>
                                 </div>
                             </div>
@@ -1283,8 +1301,13 @@ class AmneziaApp {
         this.closeQRModal();
         document.body.insertAdjacentHTML('beforeend', modalHtml);
 
+        // Store references
+        this.qrServerId = serverId;
+        this.qrClientId = clientId;
+        this.qrClientName = clientName;
+
         // Fetch client config and generate QR code
-        this.fetchAndGenerateQRCode(serverId, clientId);
+        this.fetchAndGenerateQRCode();
     }
 
     closeQRModal() {
@@ -1294,49 +1317,130 @@ class AmneziaApp {
         }
     }
 
-    async fetchAndGenerateQRCode(serverId, clientId) {
+    async fetchAndGenerateQRCode() {
         try {
-            this.qrServerId = serverId;
-            this.qrClientId = clientId;
+            const configBothUrl = `/api/servers/${this.qrServerId}/clients/${this.qrClientId}/config-both`;
+            const response = await fetch(configBothUrl);
             
-            // Use the efficient endpoint that returns both versions
-            const response = await fetch(`/api/servers/${serverId}/clients/${clientId}/config-both`);
-            if (!response.ok) {
-                throw new Error('Failed to fetch config');
+            if (response.ok) {
+                const data = await response.json();
+                this.currentCleanConfig = data.clean_config || '';
+                this.currentFullConfig = data.full_config || '';
+                this.currentConfigType = 'clean';
+            } else {
+                const configUrl = `/api/servers/${this.qrServerId}/clients/${this.qrClientId}/config`;
+                const configResponse = await fetch(configUrl);
+                if (!configResponse.ok) {
+                    throw new Error('Failed to fetch config');
+                }
+                const configText = await configResponse.text();
+                this.currentCleanConfig = configText;
+                this.currentFullConfig = configText;
+                this.currentConfigType = 'clean';
             }
             
-            const data = await response.json();
-            this.currentCleanConfig = data.clean_config;
-            this.currentFullConfig = data.full_config;
-            this.currentConfigType = 'clean';
-            this.currentClientName = data.client_name;
-            
-            // Display clean config text
+            // Update UI elements
             const configTextArea = document.getElementById('configText');
-            if (configTextArea) {
-                configTextArea.value = this.currentCleanConfig;
-                this.updateConfigTypeLabel();
-            }
+            const configLengthSpan = document.getElementById('configLength');
+            const configTypeLabel = document.getElementById('configType');
             
-            // Generate QR code from clean config
-            const qrContainer = document.getElementById('qrcode');
-            if (qrContainer) {
-                qrContainer.innerHTML = ''; // Clear any existing QR code
-                
-                new QRCode(qrContainer, {
-                    text: this.currentCleanConfig,
-                    width: 300,
-                    height: 300,
-                    colorDark: "#000000",
-                    colorLight: "#ffffff",
-                    correctLevel: QRCode.CorrectLevel.H,
-                    margin: 1
-                });
+            if (configTextArea) configTextArea.value = this.currentCleanConfig;
+            if (configLengthSpan) configLengthSpan.textContent = `Length: ${this.currentCleanConfig.length} chars`;
+            if (configTypeLabel) configTypeLabel.textContent = 'Clean Config';
+            
+            // Get DOM elements
+            const qrWarning = document.getElementById('qrTooLargeWarning');
+            const qrContainer = document.getElementById('qrCodeContainer');
+            const qrCodeText = document.getElementById('qrCodeText');
+            const downloadQRBtn = document.getElementById('downloadQRBtn');
+            const qrDiv = document.getElementById('qrcode');
+            
+            // Check if config is too large for QR code
+            const isTooLarge = this.currentCleanConfig.length > 2000;
+            
+            if (isTooLarge) {
+                // Show size warning BEFORE attempting QR generation
+                this.showSizeWarning(qrWarning, qrContainer, qrCodeText, downloadQRBtn, qrDiv);
+                return; // Stop here, don't try to generate QR code
+            }
+            else {
+                // Config is small enough, try to generate QR code
+                this.generateQRCode(qrWarning, qrContainer, qrCodeText, downloadQRBtn, qrDiv);
             }
         } catch (error) {
             console.error('Error fetching config for QR code:', error);
             this.showTempMessage('Failed to generate QR code: ' + error.message, 'error');
             this.closeQRModal();
+        }
+    }
+
+    // Helper method to show size warning
+    showSizeWarning(qrWarning, qrContainer, qrCodeText, downloadQRBtn, qrDiv) {
+        // Hide QR code section
+        if (qrContainer) qrContainer.classList.add('hidden');
+        if (qrCodeText) qrCodeText.classList.add('hidden');
+        if (downloadQRBtn) downloadQRBtn.classList.add('hidden');
+        if (qrDiv) qrDiv.innerHTML = '';
+        
+        // Show warning with size information
+        if (qrWarning) {
+            qrWarning.classList.remove('hidden');
+            const warningText = qrWarning.querySelector('p');
+            if (warningText) {
+                warningText.innerHTML =
+                    `<strong>Config too large for QR code!</strong><br>
+                    Configuration size: ${this.currentCleanConfig.length} characters (max: 2000).<br>
+                    Please use "Download Config File" instead.`;
+            }
+        }
+    }
+
+    // Helper method to generate QR code
+    generateQRCode(qrWarning, qrContainer, qrCodeText, downloadQRBtn, qrDiv) {
+        // Show QR code section
+        if (qrWarning) qrWarning.classList.add('hidden');
+        if (qrContainer) qrContainer.classList.remove('hidden');
+        if (qrCodeText) qrCodeText.classList.remove('hidden');
+        if (downloadQRBtn) downloadQRBtn.classList.remove('hidden');
+        
+        // Clear previous QR code
+        if (qrDiv) {
+            qrDiv.innerHTML = '';
+            
+            try {
+                // Generate new QR code
+                new QRCode(qrDiv, {
+                    text: this.currentCleanConfig,
+                    width: 300,
+                    height: 300,
+                    colorDark: "#000000",
+                    colorLight: "#ffffff",
+                    correctLevel: QRCode.CorrectLevel.M,
+                    margin: 1
+                });
+                
+                console.log('QR code generated successfully');
+                
+            } catch (qrError) {
+                console.error('QR code generation error:', qrError);
+                
+                // Show error in warning box
+                if (qrWarning) {
+                    qrWarning.classList.remove('hidden');
+                    const warningText = qrWarning.querySelector('p');
+                    if (warningText) {
+                        warningText.innerHTML =
+                            `<strong>Failed to generate QR code!</strong><br>
+                            ${qrError.message}<br>
+                            Please use "Download Config File" instead.`;
+                    }
+                    
+                    // Hide QR code section again
+                    if (qrContainer) qrContainer.classList.add('hidden');
+                    if (qrCodeText) qrCodeText.classList.add('hidden');
+                    if (downloadQRBtn) downloadQRBtn.classList.add('hidden');
+                }
+            }
         }
     }
 
@@ -1372,7 +1476,7 @@ class AmneziaApp {
         
         // Create a temporary link to download the canvas as PNG
         const link = document.createElement('a');
-        link.download = `${this.currentClientName.replace(/[^a-z0-9]/gi, '_')}_qr_code.png`;
+        link.download = `${this.qrClientName.replace(/[^a-z0-9]/gi, '_')}_qr_code.png`;
         link.href = canvas.toDataURL('image/png');
         link.click();
     }

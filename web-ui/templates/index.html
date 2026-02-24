@@ -160,30 +160,6 @@
         </div>
     </div>
 
-    <script>
-        // Get the NGINX port from the template
-        const nginxPort = "{{ nginx_port }}";
-        const isCustomPort = nginxPort !== "80";
-
-        // Configure SocketIO connection based on port
-        let socket;
-        if (isCustomPort) {
-            // For custom ports, explicitly specify the URL
-            const protocol = window.location.protocol;
-            const hostname = window.location.hostname;
-            socket = io(`${protocol}//${hostname}:${nginxPort}`, {
-                path: '/socket.io'
-            });
-        } else {
-            // For default port 80, use automatic detection
-            socket = io({
-                path: '/socket.io'
-            });
-        }
-
-        // Rest of your JavaScript code will use this socket object
-    </script>
-
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>
 </body>
 </html>

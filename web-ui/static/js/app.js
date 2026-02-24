@@ -110,6 +110,59 @@ class AmneziaApp {
         }
     }
 
+    updateTrafficDisplay(trafficData) {
+        // For each server in traffic data
+        for (const serverId in trafficData) {
+            if (trafficData.hasOwnProperty(serverId)) {
+                const clientsContainer = this.getElement(`clients-${serverId}`);
+                if (clientsContainer) {
+                    const serverTraffic = trafficData[serverId];
+                    
+                    // Update each client's traffic
+                    for (const clientId in serverTraffic) {
+                        if (serverTraffic.hasOwnProperty(clientId)) {
+                            const clientTraffic = serverTraffic[clientId];
+                            this.updateClientTrafficElement(clientId, clientTraffic, clientsContainer);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    updateClientTrafficElement(clientId, clientData, container) {
+        const clientElement = container.querySelector(`[data-client-id="${clientId}"]`);
+        if (clientElement) {
+            // Update traffic numbers
+            const trafficSpan = clientElement.querySelector('.client-traffic');
+            if (trafficSpan) {
+                trafficSpan.innerHTML = `🔽 ${clientData.received} &nbsp; 🔼 ${clientData.sent}`;
+            }
+            
+            // Update handshake
+            const handshakeSpan = clientElement.querySelector('.client-handshake');
+            if (handshakeSpan) {
+                const handshakeDisplay = clientData.last_handshake !== 'Never'
+                    ? `🕒 ${clientData.last_handshake}`
+                    : '🕒 Never';
+                handshakeSpan.innerHTML = handshakeDisplay;
+                handshakeSpan.title = `Last Handshake: ${clientData.last_handshake}`;
+            }
+            
+            // Update endpoint
+            const endpointSpan = clientElement.querySelector('.client-endpoint');
+            if (endpointSpan) {
+                if (clientData.endpoint) {
+                    endpointSpan.innerHTML = `🌐 ${clientData.endpoint}`;
+                    endpointSpan.title = `Endpoint: ${clientData.endpoint}`;
+                    endpointSpan.classList.remove('hidden');
+                } else {
+                    endpointSpan.classList.add('hidden');
+                }
+            }
+        }
+    }
+
     setupSocketIO() {
         // Get the current host and protocol
         const protocol = window.location.protocol;
@@ -126,7 +179,12 @@ class AmneziaApp {
 
         this.socket = io(socketUrl, {
             path: '/socket.io',
-            transports: ['websocket'], // Explicitly set transports
+            transports: ['polling', 'websocket'],  // Allow both for handshake
+            upgrade: true,
+            reconnection: true,
+            reconnectionAttempts: Infinity,  // Keep trying forever
+            reconnectionDelay: 1000,
+            reconnectionDelayMax: 5000
         });
 
         this.socket.on('connect', () => {
@@ -154,6 +212,12 @@ class AmneziaApp {
         this.socket.on('server_status', (data) => {
             console.log("Server status update:", data);
             this.loadServers();
+        });
+
+        this.socket.on('traffic_update', (data) => {
+            if (this.socket.connected) {
+                this.updateTrafficDisplay(data.traffic);
+            }
         });
     }
 
@@ -599,24 +663,48 @@ class AmneziaApp {
             <h4 class="font-medium mb-2">Clients (${clients.length}):</h4>
             <div class="space-y-2">
                 ${clients.map(client => {
-                    const clientTraffic = traffic[client.id] || {received: '0 B rcv.', sent: '0 B snt.'};
+                    const clientData = traffic[client.id] || {
+                        received: '0 B',
+                        sent: '0 B',
+                        last_handshake: 'Never',
+                        endpoint: ''
+                    };
                     const hasISettings = client.apply_i_settings || false;
                     
+                    // Format handshake time for display
+                    const handshakeDisplay = clientData.last_handshake !== 'Never'
+                        ? `🕒 ${clientData.last_handshake}`
+                        : '🕒 Never';
+                    
                     return `
-                    <div class="flex justify-between items-center bg-gray-50 p-3 rounded-lg hover:bg-gray-100 transition-colors duration-200">
+                    <div class="flex justify-between items-center bg-gray-50 p-3 rounded-lg hover:bg-gray-100 transition-colors duration-200 client-item"
+                        data-client-id="${client.id}">
+                        
                         <div class="flex items-center">
                             <div class="w-8 h-8 flex items-center justify-center bg-blue-100 text-blue-600 rounded-full mr-3">
                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
                                 </svg>
                             </div>
-                            <div class="flex items-center space-x-2">
-                                <span class="font-medium">${client.name}</span>
-                                <span class="text-sm text-gray-600 ml-2">${client.client_ip}</span>
-                                ${hasISettings ? '<span class="text-xs bg-purple-100 text-purple-800 px-2 py-1 rounded-full ml-2">I-settings</span>' : ''}
-                                <span class="text-xs text-gray-500 ml-6" style="margin-left: 0.5cm;">
-                                    🔽 ${clientTraffic.received} &nbsp; 🔼 ${clientTraffic.sent}
-                                </span>
+                            <div class="flex flex-col">
+                                <div class="flex items-center space-x-2">
+                                    <span class="font-medium">${client.name}</span>
+                                    <span class="text-sm text-gray-600 ml-2">${client.client_ip}</span>
+                                    ${hasISettings ? '<span class="text-xs bg-purple-100 text-purple-800 px-2 py-1 rounded-full ml-2">I-settings</span>' : ''}
+                                </div>
+                                <div class="flex items-center space-x-4 mt-1">
+                                    <span class="text-xs text-gray-500 client-traffic">
+                                        🔽 ${clientData.received} &nbsp; 🔼 ${clientData.sent}
+                                    </span>
+                                    <span class="text-xs text-gray-500 client-handshake"
+                                        title="Last Handshake: ${clientData.last_handshake}">
+                                        🕒 ${clientData.last_handshake}
+                                    </span>
+                                    <span class="text-xs text-gray-500 client-endpoint ${!clientData.endpoint ? 'hidden' : ''}"
+                                        title="Endpoint: ${clientData.endpoint || ''}">
+                                        🌐 ${clientData.endpoint || ''}
+                                    </span>
+                                </div>
                             </div>
                         </div>
                         <div class="flex space-x-2">
@@ -1001,7 +1089,6 @@ class AmneziaApp {
             .then(response => response.json())
             .then(data => {
                 this.defaultISettings = data;
-                console.log('Default I-settings loaded:', Object.keys(data));
             })
             .catch(error => {
                 console.error('Error loading default I-settings:', error);

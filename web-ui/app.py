@@ -78,7 +78,11 @@ socketio = SocketIO(
     app,
     async_mode='eventlet',
     cors_allowed_origins="*",  # Allow all origins for development
-    path='/socket.io'  # Explicitly set the path
+    path='/socket.io',
+    ping_timeout=10,  # heatbeat default 20s
+    ping_interval=15,  # Send ping every 15 seconds
+    allow_upgrades=True,
+    http_compression=True
 )
 
 class AmneziaManager:
@@ -86,10 +90,13 @@ class AmneziaManager:
         self.config = self.load_config()
         self.ensure_directories()
         self.public_ip = self.detect_public_ip()
+        self.traffic_update_interval = 5  # Update every 5 seconds
 
         # Auto-start servers based on environment variable
         if AUTO_START_SERVERS:
             self.auto_start_servers()
+            
+        self.start_traffic_updates()  # AUTO-START the traffic thread
 
     def ensure_directories(self):
         os.makedirs(CONFIG_DIR, exist_ok=True)
@@ -802,40 +809,132 @@ PersistentKeepalive = 25
         if not output:
             return None
 
-        # Parse output to get traffic per peer public key
-        traffic_data = {}
+        # Parse output to get traffic and handshake per peer public key
+        peer_data = {}
 
         lines = output.splitlines()
         current_peer = None
-        for line in lines:
-            line = line.strip()
+        i = 0
+        while i < len(lines):
+            line = lines[i].strip()
+            
             if line.startswith("peer:"):
                 current_peer = line.split("peer:")[1].strip()
-            elif line.startswith("transfer:") and current_peer:
-                # Example: transfer: 1.39 MiB received, 6.59 MiB sent
-                transfer_line = line[len("transfer:"):].strip()
-                # Parse received and sent
-                parts = transfer_line.split(',')
-                received = parts[0].strip() if len(parts) > 0 else ""
-                sent = parts[1].strip() if len(parts) > 1 else ""
-                traffic_data[current_peer] = {
-                    "received": received,
-                    "sent": sent
+                peer_data[current_peer] = {
+                    "received": "0 B",
+                    "sent": "0 B",
+                    "last_handshake": "Never",
+                    "endpoint": "",
+                    "latest_handshake_epoch": 0
                 }
-                current_peer = None
+            
+            elif line.startswith("transfer:") and current_peer:
+                # transfer: 1.39 MiB received, 6.59 MiB sent
+                transfer_line = line[len("transfer:"):].strip()
+                parts = transfer_line.split(',')
+                received = parts[0].strip() if len(parts) > 0 else "0 B"
+                sent = parts[1].strip() if len(parts) > 1 else "0 B"
+                
+                if current_peer in peer_data:
+                    peer_data[current_peer]["received"] = received
+                    peer_data[current_peer]["sent"] = sent
+            
+            elif line.startswith("endpoint:") and current_peer:
+                endpoint = line.split("endpoint:")[1].strip()
+                if current_peer in peer_data:
+                    peer_data[current_peer]["endpoint"] = endpoint
+            
+            elif line.startswith("allowed ips:") and current_peer:
+                allowed_ips = line.split("allowed ips:")[1].strip()
+                if current_peer in peer_data:
+                    peer_data[current_peer]["allowed_ips"] = allowed_ips
+            
+            elif line.startswith("latest handshake:") and current_peer:
+                # latest handshake: 1 minute, 23 seconds ago
+                # or: latest handshake: 5 hours, 12 minutes ago
+                # or: latest handshake: 2 days, 3 hours ago
+                handshake_line = line[len("latest handshake:"):].strip()
+                
+                if current_peer in peer_data:
+                    peer_data[current_peer]["last_handshake"] = handshake_line
+                    
+                    # Also parse to epoch seconds if available
+                    try:
+                        # Try to get raw handshake time (might be in different format)
+                        if handshake_line != "Never":
+                            # Parse relative time to approximate epoch
+                            import re
+                            import time
+                            
+                            total_seconds = 0
+                            # Parse format like "1 minute, 23 seconds ago"
+                            parts = handshake_line.replace(' ago', '').split(', ')
+                            for part in parts:
+                                match = re.match(r'(\d+)\s+(\w+)', part)
+                                if match:
+                                    value = int(match.group(1))
+                                    unit = match.group(2)
+                                    if unit.startswith('second'):
+                                        total_seconds += value
+                                    elif unit.startswith('minute'):
+                                        total_seconds += value * 60
+                                    elif unit.startswith('hour'):
+                                        total_seconds += value * 3600
+                                    elif unit.startswith('day'):
+                                        total_seconds += value * 86400
+                            
+                            peer_data[current_peer]["latest_handshake_epoch"] = time.time() - total_seconds
+                    except:
+                        peer_data[current_peer]["latest_handshake_epoch"] = 0
+            
+            i += 1
 
-        # Map traffic data to clients by matching public keys
-        clients_traffic = {}
+        # Map data to clients by matching public keys
+        clients_data = {}
         for client_id, client in self.config["clients"].items():
             if client.get("server_id") == server_id:
                 pubkey = client.get("client_public_key")
-                if pubkey in traffic_data:
-                    clients_traffic[client_id] = traffic_data[pubkey]
+                if pubkey in peer_data:
+                    clients_data[client_id] = {
+                        "received": peer_data[pubkey]["received"],
+                        "sent": peer_data[pubkey]["sent"],
+                        "last_handshake": peer_data[pubkey]["last_handshake"],
+                        "endpoint": peer_data[pubkey]["endpoint"]
+                    }
                 else:
-                    clients_traffic[client_id] = {"received": "0 B", "sent": "0 B"}
+                    clients_data[client_id] = {
+                        "received": "0 B",
+                        "sent": "0 B",
+                        "last_handshake": "Never",
+                        "endpoint": ""
+                    }
 
-        return clients_traffic
-
+        return clients_data
+    
+    def start_traffic_updates(self):
+            """Start traffic updates using SocketIO background task"""
+            def update_traffic():
+                while True:
+                    try:
+                        all_traffic = {}
+                        for server in self.config['servers']:
+                            server_id = server['id']
+                            traffic = self.get_traffic_for_server(server_id)
+                            if traffic:
+                                all_traffic[server_id] = traffic
+                        
+                        if all_traffic:
+                            socketio.emit('traffic_update', {
+                                'timestamp': time.time(),
+                                'traffic': all_traffic
+                            })
+                        
+                    except Exception as e:
+                        print(f"Traffic update error: {e}")
+                    
+                    socketio.sleep(self.traffic_update_interval)
+            
+            socketio.start_background_task(update_traffic)
 
 amnezia_manager = AmneziaManager()
 
@@ -1202,6 +1301,19 @@ def handle_connect():
         'server_port': request.environ.get('SERVER_PORT', 'unknown'),
         'client_port': request.environ.get('HTTP_X_FORWARDED_PORT', 'unknown')
     })
+    
+    all_traffic = {}
+    for server in amnezia_manager.config['servers']:
+        server_id = server['id']
+        traffic = amnezia_manager.get_traffic_for_server(server_id)
+        if traffic:
+            all_traffic[server_id] = traffic
+    
+    if all_traffic:
+        socketio.emit('traffic_update', {
+            'timestamp': time.time(),
+            'traffic': all_traffic
+        })
 
 @socketio.on('disconnect')
 def handle_disconnect():

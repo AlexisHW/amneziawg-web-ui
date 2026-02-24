@@ -24,6 +24,21 @@ class AmneziaApp {
         return element;
     }
 
+    toggleForm() {
+        const container = this.getElement('serverFormContainer');
+        const icon = this.getElement('toggleIcon');
+        
+        if (container && icon) {
+            if (container.classList.contains('hidden')) {
+                container.classList.remove('hidden');
+                icon.textContent = '▲';
+            } else {
+                container.classList.add('hidden');
+                icon.textContent = '▼';
+            }
+        }
+    }
+
     setupEventListeners() {
         // Server form submission
         const serverForm = this.getElement('serverForm');
@@ -31,14 +46,6 @@ class AmneziaApp {
             serverForm.addEventListener('submit', (e) => {
                 e.preventDefault();
                 this.createServer();
-            });
-        }
-
-        // Test create button
-        const testCreateBtn = this.getElement('testCreateBtn');
-        if (testCreateBtn) {
-            testCreateBtn.addEventListener('click', () => {
-                this.testCreateServer();
             });
         }
 
@@ -70,6 +77,14 @@ class AmneziaApp {
 
         // Form validation listeners
         this.setupFormValidation();
+        
+        // Add toggle button listener
+        const toggleBtn = this.getElement('toggleFormBtn');
+        if (toggleBtn) {
+            toggleBtn.addEventListener('click', () => {
+                this.toggleForm();
+            });
+        }
     }
 
     setupFormValidation() {
@@ -223,8 +238,28 @@ class AmneziaApp {
 
     updateStatus(message) {
         const statusElement = this.getElement('status');
+        const indicatorElement = this.getElement('statusIndicator');
+        
         if (statusElement) {
             statusElement.textContent = message;
+        }
+        
+        // Update the colored indicator based on connection status
+        if (indicatorElement) {
+            // Remove all existing color classes
+            indicatorElement.classList.remove('bg-green-500', 'bg-red-500', 'bg-gray-400', 'bg-yellow-500');
+            
+            if (message.includes('Connected')) {
+                indicatorElement.classList.add('bg-green-500');
+            } else if (message.includes('Disconnected')) {
+                indicatorElement.classList.add('bg-red-500');
+            } else if (message.includes('error') || message.includes('Error')) {
+                indicatorElement.classList.add('bg-red-500');
+            } else if (message.includes('retrying')) {
+                indicatorElement.classList.add('bg-yellow-500');
+            } else {
+                indicatorElement.classList.add('bg-gray-400');
+            }
         }
     }
 
@@ -526,44 +561,6 @@ class AmneziaApp {
             createButton.textContent = loading ? 'Creating...' : 'Create Server';
             createButton.classList.toggle('opacity-50', loading);
         }
-    }
-
-    testCreateServer() {
-        console.log("Test button clicked");
-        
-        const testData = {
-            name: "Test Server " + Date.now(),
-            port: 51820,
-            subnet: "10.0.0.0/24",
-            obfuscation: true,
-            auto_start: true
-        };
-        
-        console.log("Sending test data:", testData);
-        
-        fetch('/api/servers', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(testData)
-        })
-        .then(response => {
-            console.log("Response status:", response.status);
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            return response.json();
-        })
-        .then(server => {
-            console.log("Server created successfully:", server);
-            this.showFormStatus('Test server created successfully!', 'success');
-            this.loadServers();
-        })
-        .catch(error => {
-            console.error('Error creating server:', error);
-            this.showFormStatus('Error creating server: ' + error.message, 'error');
-        });
     }
 
     loadInitialData() {

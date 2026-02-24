@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## Version 1.5.2
+
+### Improvements
+- UI was updated for a compact view.
+- Create Test server button removed
+
 ## Version 1.5.1
 
 ### New Features

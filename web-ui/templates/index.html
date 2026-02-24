@@ -13,12 +13,19 @@
     <div class="container mx-auto px-4 py-8">
         <h1 class="text-3xl font-bold text-gray-800 mb-8">AmneziaWG Web UI</h1>
 
-        <!-- Public IP Display -->
         <div class="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-3">
             <div class="flex justify-between items-center">
-                <div>
-                    <span class="text-sm font-medium text-blue-800">Public IP: </span>
-                    <span id="publicIp" class="text-sm text-blue-600">Detecting...</span>
+                <div class="flex items-center space-x-6">
+                    <div>
+                        <span class="text-sm font-medium text-blue-800">Public IP: </span>
+                        <span id="publicIp" class="text-sm text-blue-600">Detecting...</span>
+                    </div>
+                    <!-- New System Status Box -->
+                    <div class="flex items-center space-x-2 bg-white rounded-md px-3 py-1">
+                        <span class="text-sm font-medium text-gray-700">System Status:</span>
+                        <span id="statusIndicator" class="inline-block w-3 h-3 rounded-full bg-gray-400"></span>
+                        <span id="status" class="text-sm text-gray-600">Connecting...</span>
+                    </div>
                 </div>
                 <button id="refreshIpBtn" class="text-blue-500 hover:text-blue-700 text-sm">
                     🔄 Refresh
@@ -26,124 +33,130 @@
             </div>
         </div>
 
-        <!-- Server Creation Form -->
-        <div class="bg-white rounded-lg shadow-md p-6 mb-6">
-            <h2 class="text-xl font-semibold mb-4">Create New VPN Server</h2>
-            <form id="serverForm" class="space-y-4">
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700">Server Name *</label>
-                        <input type="text" id="serverName" class="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
-                               placeholder="My VPN Server" required>
-                        <p id="nameError" class="text-red-500 text-xs mt-1 hidden">Server name is required</p>
+        <!-- Server Creation Form (Collapsed by default) -->
+        <div class="bg-white rounded-lg shadow-md mb-6">
+            <button
+                id="toggleFormBtn"
+                class="w-full text-left px-6 py-4 flex justify-between items-center hover:bg-gray-50 transition duration-200"
+            >
+                <h2 class="text-xl font-semibold">Create New VPN Server</h2>
+                <span id="toggleIcon" class="text-2xl text-gray-500">▼</span>
+            </button>
+            
+            <div id="serverFormContainer" class="hidden px-6 pb-6">
+                <form id="serverForm" class="space-y-4 pt-4">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Server Name *</label>
+                            <input type="text" id="serverName" class="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
+                                   placeholder="My VPN Server" required>
+                            <p id="nameError" class="text-red-500 text-xs mt-1 hidden">Server name is required</p>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Port *</label>
+                            <input type="number" id="serverPort" value="51820" class="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2" required>
+                            <p id="portError" class="text-red-500 text-xs mt-1 hidden">Port is required</p>
+                        </div>
                     </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700">Port *</label>
-                        <input type="number" id="serverPort" value="51820" class="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2" required>
-                        <p id="portError" class="text-red-500 text-xs mt-1 hidden">Port is required</p>
-                    </div>
-                </div>
 
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700">Subnet *</label>
-                        <input type="text" id="serverSubnet" value="10.0.0.0/24" class="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
-                               placeholder="e.g., 10.0.0.0/24" required>
-                        <p id="subnetError" class="text-red-500 text-xs mt-1 hidden">Valid subnet is required (e.g., 10.0.0.0/24)</p>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Subnet *</label>
+                            <input type="text" id="serverSubnet" value="10.0.0.0/24" class="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
+                                   placeholder="e.g., 10.0.0.0/24" required>
+                            <p id="subnetError" class="text-red-500 text-xs mt-1 hidden">Valid subnet is required (e.g., 10.0.0.0/24)</p>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">MTU (1280-1440) *</label>
+                            <input type="number" id="serverMTU" value="1420" min="1280" max="1440"
+                                class="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2" required>
+                            <p id="mtuError" class="text-red-500 text-xs mt-1 hidden">MTU must be between 1280 and 1440</p>
+                            <p class="text-gray-500 text-xs mt-1">Recommended: 1280 for basic internet, 1420-1440 for better performance</p>
+                        </div>
                     </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700">MTU (1280-1440) *</label>
-                        <input type="number" id="serverMTU" value="1420" min="1280" max="1440"
-                            class="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2" required>
-                        <p id="mtuError" class="text-red-500 text-xs mt-1 hidden">MTU must be between 1280 and 1440</p>
-                        <p class="text-gray-500 text-xs mt-1">Recommended: 1280 for basic internet, 1420-1440 for better performance</p>
-                    </div>
-                </div>
 
-                <div class="grid grid-cols-1 gap-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700">DNS Servers *</label>
-                        <input type="text" id="serverDNS" value="8.8.8.8,1.1.1.1"
-                            class="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
-                            placeholder="8.8.8.8,1.1.1.1" required>
-                        <p id="dnsError" class="text-red-500 text-xs mt-1 hidden">Valid DNS servers required (comma-separated IPs)</p>
-                        <p class="text-gray-500 text-xs mt-1">Comma-separated DNS server IPs (e.g., 8.8.8.8,1.1.1.1)</p>
-                    </div>
-                </div>
-
-                <div class="flex items-center">
-                    <input type="checkbox" id="autoStart" checked class="mr-2">
-                    <label class="text-sm font-medium text-gray-700">Auto-start server on creation</label>
-                </div>
-                <div class="flex items-center">
-                    <input type="checkbox" id="enableObfuscation" checked class="mr-2">
-                    <label class="text-sm font-medium text-gray-700">Enable Traffic Obfuscation</label>
-                </div>
-
-                <!-- Obfuscation Parameters -->
-                <div id="obfuscationParams" class="border rounded-lg p-4 bg-gray-50">
-                    <h3 class="text-lg font-medium mb-3">Obfuscation Parameters</h3>
-                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                    <div class="grid grid-cols-1 gap-4">
                         <div>
-                            <label class="block text-xs font-medium text-gray-600">Jc (4-12)</label>
-                            <input type="number" id="paramJc" value="3" min="4" max="12" class="mt-1 block w-full border border-gray-300 rounded-md px-2 py-1 text-sm">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-medium text-gray-600">Jmin (recommended: 8)</label>
-                            <input type="number" id="paramJmin" value="8" min="1" max="1438" class="mt-1 block w-full border border-gray-300 rounded-md px-2 py-1 text-sm">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-medium text-gray-600">Jmax (recommended: 80)</label>
-                            <input type="number" id="paramJmax" value="80" min="2" max="1440" class="mt-1 block w-full border border-gray-300 rounded-md px-2 py-1 text-sm">
+                            <label class="block text-sm font-medium text-gray-700">DNS Servers *</label>
+                            <input type="text" id="serverDNS" value="8.8.8.8,1.1.1.1"
+                                class="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
+                                placeholder="8.8.8.8,1.1.1.1" required>
+                            <p id="dnsError" class="text-red-500 text-xs mt-1 hidden">Valid DNS servers required (comma-separated IPs)</p>
+                            <p class="text-gray-500 text-xs mt-1">Comma-separated DNS server IPs (e.g., 8.8.8.8,1.1.1.1)</p>
                         </div>
                     </div>
-                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm mt-2">
-                        <div>
-                            <label class="block text-xs font-medium text-gray-600">S1 (15-150)</label>
-                            <input type="number" id="paramS1" value="50" min="15" max="150" class="mt-1 block w-full border border-gray-300 rounded-md px-2 py-1 text-sm">
+
+                    <div class="flex items-center">
+                        <input type="checkbox" id="autoStart" checked class="mr-2">
+                        <label class="text-sm font-medium text-gray-700">Auto-start server on creation</label>
+                    </div>
+                    <div class="flex items-center">
+                        <input type="checkbox" id="enableObfuscation" checked class="mr-2">
+                        <label class="text-sm font-medium text-gray-700">Enable Traffic Obfuscation</label>
+                    </div>
+
+                    <!-- Obfuscation Parameters -->
+                    <div id="obfuscationParams" class="border rounded-lg p-4 bg-gray-50">
+                        <h3 class="text-lg font-medium mb-3">Obfuscation Parameters</h3>
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                            <div>
+                                <label class="block text-xs font-medium text-gray-600">Jc (4-12)</label>
+                                <input type="number" id="paramJc" value="3" min="4" max="12" class="mt-1 block w-full border border-gray-300 rounded-md px-2 py-1 text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-600">Jmin (recommended: 8)</label>
+                                <input type="number" id="paramJmin" value="8" min="1" max="1438" class="mt-1 block w-full border border-gray-300 rounded-md px-2 py-1 text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-600">Jmax (recommended: 80)</label>
+                                <input type="number" id="paramJmax" value="80" min="2" max="1440" class="mt-1 block w-full border border-gray-300 rounded-md px-2 py-1 text-sm">
+                            </div>
                         </div>
-                        <div>
-                            <label class="block text-xs font-medium text-gray-600">S2 (15-150)</label>
-                            <input type="number" id="paramS2" value="60" min="15" max="150" class="mt-1 block w-full border border-gray-300 rounded-md px-2 py-1 text-sm">
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm mt-2">
+                            <div>
+                                <label class="block text-xs font-medium text-gray-600">S1 (15-150)</label>
+                                <input type="number" id="paramS1" value="50" min="15" max="150" class="mt-1 block w-full border border-gray-300 rounded-md px-2 py-1 text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-600">S2 (15-150)</label>
+                                <input type="number" id="paramS2" value="60" min="15" max="150" class="mt-1 block w-full border border-gray-300 rounded-md px-2 py-1 text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-600">H1</label>
+                                <input type="number" id="paramH1" value="1000" class="mt-1 block w-full border border-gray-300 rounded-md px-2 py-1 text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-600">H2</label>
+                                <input type="number" id="paramH2" value="2000" class="mt-1 block w-full border border-gray-300 rounded-md px-2 py-1 text-sm">
+                            </div>
                         </div>
-                        <div>
-                            <label class="block text-xs font-medium text-gray-600">H1</label>
-                            <input type="number" id="paramH1" value="1000" class="mt-1 block w-full border border-gray-300 rounded-md px-2 py-1 text-sm">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-medium text-gray-600">H2</label>
-                            <input type="number" id="paramH2" value="2000" class="mt-1 block w-full border border-gray-300 rounded-md px-2 py-1 text-sm">
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm mt-2">
+                            <div>
+                                <label class="block text-xs font-medium text-gray-600">H3</label>
+                                <input type="number" id="paramH3" value="3000" class="mt-1 block w-full border border-gray-300 rounded-md px-2 py-1 text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-600">H4</label>
+                                <input type="number" id="paramH4" value="4000" class="mt-1 block w-full border border-gray-300 rounded-md px-2 py-1 text-sm">
+                            </div>
+                            <div class="col-span-2">
+                                <button type="button" id="randomParamsBtn" class="mt-6 bg-gray-500 text-white px-3 py-1 rounded text-sm hover:bg-gray-600">
+                                    Generate Random Parameters
+                                </button>
+                            </div>
                         </div>
                     </div>
-                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm mt-2">
-                        <div>
-                            <label class="block text-xs font-medium text-gray-600">H3</label>
-                            <input type="number" id="paramH3" value="3000" class="mt-1 block w-full border border-gray-300 rounded-md px-2 py-1 text-sm">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-medium text-gray-600">H4</label>
-                            <input type="number" id="paramH4" value="4000" class="mt-1 block w-full border border-gray-300 rounded-md px-2 py-1 text-sm">
-                        </div>
-                        <div class="col-span-2">
-                            <button type="button" id="randomParamsBtn" class="mt-6 bg-gray-500 text-white px-3 py-1 rounded text-sm hover:bg-gray-600">
-                                Generate Random Parameters
-                            </button>
-                        </div>
+                    <div id="obfuscationError" class="text-red-600 text-xs mt-1 hidden"></div>
+
+                    <div class="flex space-x-4">
+                        <button type="submit" id="createButton" class="bg-blue-500 text-white px-6 py-2 rounded-md hover:bg-blue-600 transition duration-200">
+                            Create Server
+                        </button>
                     </div>
-                </div>
-                <div id="obfuscationError" class="text-red-600 text-xs mt-1 hidden"></div>
 
-                <div class="flex space-x-4">
-                    <button type="submit" id="createButton" class="bg-blue-500 text-white px-6 py-2 rounded-md hover:bg-blue-600 transition duration-200">
-                        Create Server
-                    </button>
-                    <button type="button" id="testCreateBtn" class="bg-green-500 text-white px-6 py-2 rounded-md hover:bg-green-600 transition duration-200">
-                        Test Create
-                    </button>
-                </div>
-
-                <div id="formStatus" class="text-sm mt-2 hidden"></div>
-            </form>
+                    <div id="formStatus" class="text-sm mt-2 hidden"></div>
+                </form>
+            </div>
         </div>
 
         <!-- Servers List -->
@@ -153,11 +166,13 @@
             </div>
         </div>
 
-        <!-- Status -->
-        <div class="mt-8 bg-white rounded-lg shadow-md p-6">
-            <h2 class="text-xl font-semibold mb-4">System Status</h2>
-            <div id="status" class="text-gray-600">Connecting to AmneziaWG Web UI...</div>
+        <!-- Copyright Footer -->
+        <div class="mt-8 text-center text-gray-400 text-sm">
+            <a href="https://github.com/AlexisHW/amneziawg-web-ui/" target="_blank" rel="noopener noreferrer" class="hover:text-gray-600 transition duration-200">
+                © AmneziaWG Web UI
+            </a>
         </div>
+
     </div>
 
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>

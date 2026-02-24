@@ -3,6 +3,7 @@
 A comprehensive web-based management interface for AmneziaWG VPN servers. This service provides an easy-to-use web UI to create, manage, and monitor WireGuard VPN servers with AmneziaWG's advanced obfuscation features.
 All server configuration is done via web interface or via API endpoints. Providing env variables at docker startup is supported but doesn't make much sense: all settings can be overridden via web interface except for NGINX_PORT.
 
+<img src="screenshot2.png" alt="Web UI screenshot" width="50%"/>
 <img src="screenshot.png" alt="Web UI screenshot" width="50%"/>
 
 > [!TIP]

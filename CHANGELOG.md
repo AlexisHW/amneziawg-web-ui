@@ -1,5 +1,13 @@
 # CHANGELOG
 
+## Version 1.5.1
+
+### New Features
+- For each client traffic, remote endpoint and last handshake time is displayed. Data is auto-refreshed every 5 seconds without API requests.
+
+### Fix
+- Fixed websocket polling issue with custom ports
+
 ## Version 1.5.0 - AWG 1.5 support
 
 ### New Features

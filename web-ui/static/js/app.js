@@ -75,6 +75,14 @@ class AmneziaApp {
             this.toggleObfuscationParams(obfuscationCheckbox.checked);
         }
 
+        const awg2Checkbox = this.getElement('enableAwg2');
+        if (awg2Checkbox) {
+            awg2Checkbox.addEventListener('change', (e) => {
+                this.toggleAwg2Fields(e.target.checked);
+            });
+            this.toggleAwg2Fields(awg2Checkbox.checked);
+        }
+
         // Form validation listeners
         this.setupFormValidation();
         
@@ -123,6 +131,14 @@ class AmneziaApp {
         if (obfuscationParams) {
             obfuscationParams.style.display = show ? 'block' : 'none';
         }
+    }
+
+    toggleAwg2Fields(show) {
+        const s3Field = document.getElementById('awg2FieldS3');
+        const s4Field = document.getElementById('awg2FieldS4');
+        
+        if (s3Field) s3Field.style.display = show ? 'block' : 'none';
+        if (s4Field) s4Field.style.display = show ? 'block' : 'none';
     }
 
     updateTrafficDisplay(trafficData) {
@@ -288,7 +304,7 @@ class AmneziaApp {
         const s1Element = this.getElement('paramS1');
         const s2Element = this.getElement('paramS2');
         const s3Element = this.getElement('paramS3');
-        const s4Element = this.getElement('paramS4');                
+        const s4Element = this.getElement('paramS4');
         const h1Element = this.getElement('paramH1');
         const h2Element = this.getElement('paramH2');
         const h3Element = this.getElement('paramH3');
@@ -351,7 +367,7 @@ class AmneziaApp {
         }
         if (params.S4 > 32) {
             errors.push(`S4 (${params.S4}) must be in range [0, 32]`);
-        }        
+        }
 
         return errors;
     }

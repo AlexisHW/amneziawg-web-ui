@@ -93,6 +93,7 @@
                     <div class="flex items-center">
                         <input type="checkbox" id="enableObfuscation" checked class="mr-2">
                         <label class="text-sm font-medium text-gray-700">Enable Traffic Obfuscation</label>
+                        &nbsp; &nbsp;
                         <input type="checkbox" id="enableAwg2" checked class="mr-2">
                         <label class="text-sm font-medium text-gray-700">Enable AmneziaWG 2.0</label>
                     </div>
@@ -103,7 +104,7 @@
                         <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                             <div>
                                 <label class="block text-xs font-medium text-gray-600">Jc (4-12)</label>
-                                <input type="number" id="paramJc" value="3" min="4" max="12" class="mt-1 block w-full border border-gray-300 rounded-md px-2 py-1 text-sm">
+                                <input type="number" id="paramJc" value="4" min="4" max="12" class="mt-1 block w-full border border-gray-300 rounded-md px-2 py-1 text-sm">
                             </div>
                             <div>
                                 <label class="block text-xs font-medium text-gray-600">Jmin (recommended: 8)</label>
@@ -123,14 +124,16 @@
                                 <label class="block text-xs font-medium text-gray-600">S2 (15-150)</label>
                                 <input type="number" id="paramS2" value="60" min="15" max="150" class="mt-1 block w-full border border-gray-300 rounded-md px-2 py-1 text-sm">
                             </div>
-                            <div>
+                            <div id="awg2FieldS3" style="display: none;">
                                 <label class="block text-xs font-medium text-gray-600">S3 (0-256)</label>
-                                <input type="number" id="paramS3" value="60" min="0" max="256" class="mt-1 block w-full border border-gray-300 rounded-md px-2 py-1 text-sm">
+                                <input type="number" id="paramS3" value="0" min="0" max="256" class="mt-1 block w-full border border-gray-300 rounded-md px-2 py-1 text-sm">
                             </div>
-                            <div>
+                            <div id="awg2FieldS4" style="display: none;">
                                 <label class="block text-xs font-medium text-gray-600">S4 (0-32)</label>
-                                <input type="number" id="paramS4" value="60" min="0" max="32" class="mt-1 block w-full border border-gray-300 rounded-md px-2 py-1 text-sm">
-                            </div>                                                        
+                                <input type="number" id="paramS4" value="0" min="0" max="32" class="mt-1 block w-full border border-gray-300 rounded-md px-2 py-1 text-sm">
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm mt-2">
                             <div>
                                 <label class="block text-xs font-medium text-gray-600">H1</label>
                                 <input type="number" id="paramH1" value="1000" class="mt-1 block w-full border border-gray-300 rounded-md px-2 py-1 text-sm">
@@ -139,8 +142,6 @@
                                 <label class="block text-xs font-medium text-gray-600">H2</label>
                                 <input type="number" id="paramH2" value="2000" class="mt-1 block w-full border border-gray-300 rounded-md px-2 py-1 text-sm">
                             </div>
-                        </div>
-                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm mt-2">
                             <div>
                                 <label class="block text-xs font-medium text-gray-600">H3</label>
                                 <input type="number" id="paramH3" value="3000" class="mt-1 block w-full border border-gray-300 rounded-md px-2 py-1 text-sm">

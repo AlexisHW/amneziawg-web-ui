@@ -280,8 +280,8 @@ class AmneziaManager:
                 obfuscation_params = server_data['obfuscation_params']
             else:
                 obfuscation_params = self.generate_obfuscation_params(mtu)
-            if 'awg2' in server_data:
-                awg2_enabled = True
+                
+        awg2_enabled = server_data.get('awg2', False)
 
         # Parse subnet for server IP
         subnet_parts = subnet.split('/')
@@ -300,18 +300,17 @@ MTU = {mtu}
 
         # Add obfuscation parameters if enabled
         if enable_obfuscation and obfuscation_params:
-
             server_config_content += f"""Jc = {obfuscation_params['Jc']}
 Jmin = {obfuscation_params['Jmin']}
 Jmax = {obfuscation_params['Jmax']}
 S1 = {obfuscation_params['S1']}
 S2 = {obfuscation_params['S2']}
 """
-        if awg2_enabled:
-            server_config_content += f"""S3 = {obfuscation_params['S3']}
+            if awg2_enabled:
+                server_config_content += f"""S3 = {obfuscation_params['S3']}
 S4 = {obfuscation_params['S4']}
 """
-        server_config_content += f"""H1 = {obfuscation_params['H1']}
+            server_config_content += f"""H1 = {obfuscation_params['H1']}
 H2 = {obfuscation_params['H2']}
 H3 = {obfuscation_params['H3']}
 H4 = {obfuscation_params['H4']}
@@ -456,7 +455,7 @@ H4 = {obfuscation_params['H4']}
             "obfuscation_params": server["obfuscation_params"],
             "apply_i_settings": apply_i_settings,
             "i_settings": client_i_settings,
-            "awg2_enabled": server["awg2_enabled"]
+            "awg2_enabled": server.get("awg2_enabled", False)
         }
 
         # Add client to server config

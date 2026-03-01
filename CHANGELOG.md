@@ -1,5 +1,31 @@
 # CHANGELOG
 
+## Version 1.6.0
+
+### New Features
+- AmneziaWG 2.0 support (added parameters S3 and S4)
+
+
+AWG 2.0 is **not compatible** with older versions, so to enable it, you have to recreate server and regenerate clients.
+
+Previously created servers running on the updated app image **are not affected** and continue working in the `1.0/1.5` mode.
+
+You have to use AmneziaVPN `4.8.12.7` client or newer or AmneziaWG `1.1.4` and newer to support AWG 2.0.
+
+#### Technical info
+In WireGuard, the Init packet is exactly 148 bytes, Response is 92 bytes, Cookie is 64 bytes, and Data has variable size (payload). AmneziaWG adds pseudorandom prefixes S1, S2, S3, and S4 (0 to 32/64 bytes) accordingly:
+
+```
+len(init) = 148 + random(0..S1)
+len(resp) = 92 + random(0..S2)
+len(cookie) = 64 + random(0..S3)
+len(data) = payload + random(0..S4)
+```
+
+In WireGuard, Cookie Reply messages are used when the server is under load and issues cookie challenges (DoS mitigation). AmneziaWG obfuscates these packets like the other message types: the 32-bit message type is replaced with the configured magic header H3 (a value selected from the configured range), and then a random-length padding prefix of 0..S3 bytes is prepended (so the packet size becomes 64 + random(0..S3)).
+
+With all parameters set to zero, behavior defaults to standard WireGuard — facilitating a smooth migration.
+
 ## Version 1.5.2
 
 ### Improvements

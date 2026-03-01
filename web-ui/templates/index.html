@@ -93,6 +93,8 @@
                     <div class="flex items-center">
                         <input type="checkbox" id="enableObfuscation" checked class="mr-2">
                         <label class="text-sm font-medium text-gray-700">Enable Traffic Obfuscation</label>
+                        <input type="checkbox" id="enableAwg2" checked class="mr-2">
+                        <label class="text-sm font-medium text-gray-700">Enable AmneziaWG 2.0</label>
                     </div>
 
                     <!-- Obfuscation Parameters -->
@@ -121,6 +123,14 @@
                                 <label class="block text-xs font-medium text-gray-600">S2 (15-150)</label>
                                 <input type="number" id="paramS2" value="60" min="15" max="150" class="mt-1 block w-full border border-gray-300 rounded-md px-2 py-1 text-sm">
                             </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-600">S3 (0-256)</label>
+                                <input type="number" id="paramS3" value="60" min="0" max="256" class="mt-1 block w-full border border-gray-300 rounded-md px-2 py-1 text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-600">S4 (0-32)</label>
+                                <input type="number" id="paramS4" value="60" min="0" max="32" class="mt-1 block w-full border border-gray-300 rounded-md px-2 py-1 text-sm">
+                            </div>                                                        
                             <div>
                                 <label class="block text-xs font-medium text-gray-600">H1</label>
                                 <input type="number" id="paramH1" value="1000" class="mt-1 block w-full border border-gray-300 rounded-md px-2 py-1 text-sm">

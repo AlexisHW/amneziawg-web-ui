@@ -287,6 +287,8 @@ class AmneziaApp {
         const jcElement = this.getElement('paramJc');
         const s1Element = this.getElement('paramS1');
         const s2Element = this.getElement('paramS2');
+        const s3Element = this.getElement('paramS3');
+        const s4Element = this.getElement('paramS4');                
         const h1Element = this.getElement('paramH1');
         const h2Element = this.getElement('paramH2');
         const h3Element = this.getElement('paramH3');
@@ -295,6 +297,8 @@ class AmneziaApp {
         if (jcElement) jcElement.value = Math.floor(Math.random() * 9) + 4; // 4-12
         if (s1Element) s1Element.value = Math.floor(Math.random() * 136) + 15; // 15-150
         if (s2Element) s2Element.value = Math.floor(Math.random() * 136) + 15; // 15-150
+        if (s3Element) s3Element.value = Math.floor(Math.random() * 256) + 1; // 1-256
+        if (s4Element) s4Element.value = Math.floor(Math.random() * 32) + 1; // 1-32
         
         // Generate unique H values
         const hValues = new Set();
@@ -345,6 +349,9 @@ class AmneziaApp {
         if (params.S1 + 56 === params.S2) {
             errors.push(`S1 + 56 (${params.S1 + 56}) must not equal S2 (${params.S2})`);
         }
+        if (params.S4 > 32) {
+            errors.push(`S4 (${params.S4}) must be in range [0, 32]`);
+        }        
 
         return errors;
     }
@@ -477,6 +484,7 @@ class AmneziaApp {
         const mtuElement = this.getElement('serverMTU');
         const dnsElement = this.getElement('serverDNS');
         const obfuscationElement = this.getElement('enableObfuscation');
+        const awg2Element = this.getElement('enableAwg2');
         const autoStartElement = this.getElement('autoStart');
 
         const formData = {
@@ -486,6 +494,7 @@ class AmneziaApp {
             mtu: mtuElement ? parseInt(mtuElement.value) : 1420,
             dns: dnsElement ? dnsElement.value.trim() : '8.8.8.8,1.1.1.1',
             obfuscation: obfuscationElement ? obfuscationElement.checked : true,
+            awg2: awg2Element ? awg2Element.checked : true,
             auto_start: autoStartElement ? autoStartElement.checked : true
         };
 
@@ -493,17 +502,33 @@ class AmneziaApp {
 
         // Add obfuscation parameters if enabled
         if (formData.obfuscation) {
-            formData.obfuscation_params = {
-                Jc: parseInt(this.getElement('paramJc')?.value || '8'),
-                Jmin: parseInt(this.getElement('paramJmin')?.value || '8'),
-                Jmax: parseInt(this.getElement('paramJmax')?.value || '80'),
-                S1: parseInt(this.getElement('paramS1')?.value || '50'),
-                S2: parseInt(this.getElement('paramS2')?.value || '60'),
-                H1: parseInt(this.getElement('paramH1')?.value || '1000'),
-                H2: parseInt(this.getElement('paramH2')?.value || '2000'),
-                H3: parseInt(this.getElement('paramH3')?.value || '3000'),
-                H4: parseInt(this.getElement('paramH4')?.value || '4000'),
-            };
+            if (formData.obfuscation && formData.awg2) {
+                formData.obfuscation_params = {
+                    Jc: parseInt(this.getElement('paramJc')?.value || '8'),
+                    Jmin: parseInt(this.getElement('paramJmin')?.value || '8'),
+                    Jmax: parseInt(this.getElement('paramJmax')?.value || '80'),
+                    S1: parseInt(this.getElement('paramS1')?.value || '50'),
+                    S2: parseInt(this.getElement('paramS2')?.value || '60'),
+                    S3: parseInt(this.getElement('paramS3')?.value || '0'),
+                    S4: parseInt(this.getElement('paramS4')?.value || '0'),
+                    H1: parseInt(this.getElement('paramH1')?.value || '1000'),
+                    H2: parseInt(this.getElement('paramH2')?.value || '2000'),
+                    H3: parseInt(this.getElement('paramH3')?.value || '3000'),
+                    H4: parseInt(this.getElement('paramH4')?.value || '4000'),
+                };
+            } else {
+                formData.obfuscation_params = {
+                    Jc: parseInt(this.getElement('paramJc')?.value || '8'),
+                    Jmin: parseInt(this.getElement('paramJmin')?.value || '8'),
+                    Jmax: parseInt(this.getElement('paramJmax')?.value || '80'),
+                    S1: parseInt(this.getElement('paramS1')?.value || '50'),
+                    S2: parseInt(this.getElement('paramS2')?.value || '60'),
+                    H1: parseInt(this.getElement('paramH1')?.value || '1000'),
+                    H2: parseInt(this.getElement('paramH2')?.value || '2000'),
+                    H3: parseInt(this.getElement('paramH3')?.value || '3000'),
+                    H4: parseInt(this.getElement('paramH4')?.value || '4000'),
+                };
+            }
 
             const obfErrors = this.validateObfuscationParamsJS(formData.obfuscation_params, formData.mtu);
             if (obfErrors.length > 0) {

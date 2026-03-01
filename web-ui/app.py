@@ -214,6 +214,8 @@ class AmneziaManager:
         # S2 must not be S1+56
         s2_candidates = [s for s in range(15, min(150, mtu - 92) + 1) if s != S1 + 56]
         S2 = random.choice(s2_candidates)
+        S3 = random.randint(1, 256)
+        S4 = random.randint(1, 32)
         Jmin = random.randint(4, mtu - 2)
         Jmax = random.randint(Jmin + 1, mtu)
         return {
@@ -222,6 +224,8 @@ class AmneziaManager:
             "Jmax": Jmax,
             "S1": S1,
             "S2": S2,
+            "S3": S3,
+            "S4": S4,
             "H1": random.randint(10000, 100000),
             "H2": random.randint(100000, 200000),
             "H3": random.randint(200000, 300000),
@@ -276,6 +280,8 @@ class AmneziaManager:
                 obfuscation_params = server_data['obfuscation_params']
             else:
                 obfuscation_params = self.generate_obfuscation_params(mtu)
+            if 'awg2' in server_data:
+                awg2_enabled = True
 
         # Parse subnet for server IP
         subnet_parts = subnet.split('/')
@@ -300,7 +306,12 @@ Jmin = {obfuscation_params['Jmin']}
 Jmax = {obfuscation_params['Jmax']}
 S1 = {obfuscation_params['S1']}
 S2 = {obfuscation_params['S2']}
-H1 = {obfuscation_params['H1']}
+"""
+        if awg2_enabled:
+            server_config_content += f"""S3 = {obfuscation_params['S3']}
+S4 = {obfuscation_params['S4']}
+"""
+        server_config_content += f"""H1 = {obfuscation_params['H1']}
 H2 = {obfuscation_params['H2']}
 H3 = {obfuscation_params['H3']}
 H4 = {obfuscation_params['H4']}
@@ -321,6 +332,7 @@ H4 = {obfuscation_params['H4']}
             "mtu": mtu,
             "public_ip": self.public_ip,
             "obfuscation_enabled": enable_obfuscation,
+            "awg2_enabled": awg2_enabled,
             "obfuscation_params": obfuscation_params,
             "auto_start": auto_start,
             "dns": dns_servers,  # Store DNS servers
@@ -443,7 +455,8 @@ H4 = {obfuscation_params['H4']}
             "obfuscation_enabled": server["obfuscation_enabled"],
             "obfuscation_params": server["obfuscation_params"],
             "apply_i_settings": apply_i_settings,
-            "i_settings": client_i_settings
+            "i_settings": client_i_settings,
+            "awg2_enabled": server["awg2_enabled"]
         }
 
         # Add client to server config
@@ -572,7 +585,12 @@ Jmin = {params['Jmin']}
 Jmax = {params['Jmax']}
 S1 = {params['S1']}
 S2 = {params['S2']}
-H1 = {params['H1']}
+"""
+        if client_config.get('awg2_enabled', False):
+            config += f"""S3 = {params['S3']}
+S4 = {params['S4']}
+"""
+        config += f"""H1 = {params['H1']}
 H2 = {params['H2']}
 H3 = {params['H3']}
 H4 = {params['H4']}

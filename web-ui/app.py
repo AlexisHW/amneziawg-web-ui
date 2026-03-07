@@ -376,12 +376,17 @@ H4 = {obfuscation_params['H4']}
             return f"{parts[0]}.{parts[1]}.{parts[2]}.1"
         return "10.0.0.1"
 
-    def get_client_ip(self, server, client_index):
+    def get_new_client_ip(self, server_id):
         """Get client IP from server subnet"""
-        parts = server['server_ip'].split('.')
-        if len(parts) == 4:
-            return f"{parts[0]}.{parts[1]}.{parts[2]}.{client_index + 2}"
-        return f"10.0.0.{client_index + 2}"
+        clients_conf = amnezia_manager.get_client_configs(server_id)
+        if clients_conf:
+            last_configured_ip = clients_conf[-1]['client_ip']
+        else:
+            last_configured_ip = f"10.0.0.1"
+
+        parts = last_configured_ip.split('.')
+            
+        return f"{parts[0]}.{parts[1]}.{parts[2]}.{int(parts[3]) + 1}"
 
     def delete_server(self, server_id):
         """Delete a server and all its clients"""
@@ -419,7 +424,7 @@ H4 = {obfuscation_params['H4']}
         preshared_key = self.generate_preshared_key()
 
         # Assign client IP
-        client_ip = self.get_client_ip(server, len(server['clients']))
+        client_ip = self.get_new_client_ip(server_id)
         
         # Process I-settings
         client_i_settings = {}

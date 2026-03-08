@@ -337,6 +337,7 @@ H4 = {obfuscation_params['H4']}
             "auto_start": auto_start,
             "dns": dns_servers,  # Store DNS servers
             "clients": [],
+            "unbound_nat_ips": [],
             "created_at": time.time()
         }
 

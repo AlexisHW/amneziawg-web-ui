@@ -386,6 +386,8 @@ H4 = {obfuscation_params['H4']}
         unbound_ips = server.get("unbound_nat_ips", [])
         if unbound_ips:
             unbound_ip = unbound_ips.pop(0)
+            server["unbound_nat_ips"] = unbound_ips 
+            self.save_config()
             return unbound_ip
 
         subnet_str = server['subnet']

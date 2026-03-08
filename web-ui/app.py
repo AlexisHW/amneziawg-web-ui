@@ -11,6 +11,7 @@ from flask import Flask, render_template, request, jsonify, send_file, send_from
 from flask_socketio import SocketIO
 import threading
 import time
+import ipaddress
 
 # Get the absolute path to the current directory
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -378,15 +379,29 @@ H4 = {obfuscation_params['H4']}
 
     def get_new_client_ip(self, server_id):
         """Get client IP from server subnet"""
-        clients_conf = amnezia_manager.get_client_configs(server_id)
-        if clients_conf:
-            last_configured_ip = clients_conf[-1]['client_ip']
-        else:
-            last_configured_ip = f"10.0.0.1"
+        server = next((s for s in self.config['servers'] if s['id'] == server_id), None)
+        if not server:
+            return False
 
-        parts = last_configured_ip.split('.')
-            
-        return f"{parts[0]}.{parts[1]}.{parts[2]}.{int(parts[3]) + 1}"
+        unbound_ips = server.get("unbound_nat_ips", [])
+        if unbound_ips:
+            unbound_ip = unbound_ips.pop(0)
+            return unbound_ip
+
+        subnet_str = server['subnet']
+        network = ipaddress.ip_network(subnet_str)
+    
+        used_ips = {server['server_ip']}
+        for client in server.get('clients', []):
+            used_ips.add(client['client_ip'])
+
+        for ip in network.hosts():
+            ip_str = str(ip)
+            if ip_str not in used_ips:
+                return ip_str
+
+        print(f"Subnet {subnet_str} is full! No available IPs.")
+        return False
 
     def delete_server(self, server_id):
         """Delete a server and all its clients"""
@@ -425,7 +440,9 @@ H4 = {obfuscation_params['H4']}
 
         # Assign client IP
         client_ip = self.get_new_client_ip(server_id)
-        
+        if not client_ip:
+            return None
+
         # Process I-settings
         client_i_settings = {}
         if apply_i_settings:
@@ -509,6 +526,8 @@ AllowedIPs = {client_ip}/32
         # Remove from global clients dict
         if client_id in self.config["clients"]:
             del self.config["clients"][client_id]
+
+        server.setdefault("unbound_nat_ips", []).append(client["client_ip"])
 
         # Rewrite the config file without the deleted client's [Peer] block
         self.rewrite_server_conf_without_client(server, client)

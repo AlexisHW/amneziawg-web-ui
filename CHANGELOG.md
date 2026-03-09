@@ -1,8 +1,13 @@
 # CHANGELOG
 
+## Version 1.6.2
+
+### Improvement
+- Added conditional check if LE SSL config is already included. May be useful when container is stopped and restarted without recreation.
+
 ## Version 1.6.1
 
-### Fixed
+### Fix
 - Fixed an issue for previously used client IPs of deleted clients are not properly assigned.
 
 ## Version 1.6.0

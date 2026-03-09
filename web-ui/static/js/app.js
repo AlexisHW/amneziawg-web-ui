@@ -527,10 +527,11 @@ class AmneziaApp {
                     S2: parseInt(this.getElement('paramS2')?.value || '60'),
                     S3: parseInt(this.getElement('paramS3')?.value || '0'),
                     S4: parseInt(this.getElement('paramS4')?.value || '0'),
-                    H1: parseInt(this.getElement('paramH1')?.value || '1000'),
-                    H2: parseInt(this.getElement('paramH2')?.value || '2000'),
-                    H3: parseInt(this.getElement('paramH3')?.value || '3000'),
-                    H4: parseInt(this.getElement('paramH4')?.value || '4000'),
+                    // Handle H1-H4 as strings to support ranges
+                    H1: this.getElement('paramH1')?.value || '1000',
+                    H2: this.getElement('paramH2')?.value || '2000',
+                    H3: this.getElement('paramH3')?.value || '3000',
+                    H4: this.getElement('paramH4')?.value || '4000',
                 };
             } else {
                 formData.obfuscation_params = {
@@ -539,10 +540,11 @@ class AmneziaApp {
                     Jmax: parseInt(this.getElement('paramJmax')?.value || '80'),
                     S1: parseInt(this.getElement('paramS1')?.value || '50'),
                     S2: parseInt(this.getElement('paramS2')?.value || '60'),
-                    H1: parseInt(this.getElement('paramH1')?.value || '1000'),
-                    H2: parseInt(this.getElement('paramH2')?.value || '2000'),
-                    H3: parseInt(this.getElement('paramH3')?.value || '3000'),
-                    H4: parseInt(this.getElement('paramH4')?.value || '4000'),
+                    // Handle H1-H4 as strings to support ranges
+                    H1: this.getElement('paramH1')?.value || '1000',
+                    H2: this.getElement('paramH2')?.value || '2000',
+                    H3: this.getElement('paramH3')?.value || '3000',
+                    H4: this.getElement('paramH4')?.value || '4000',
                 };
             }
 
@@ -870,6 +872,8 @@ class AmneziaApp {
     }
 
     showClientModalWithDefaults(serverId, modalTitle, clientName, applyISettings, iSettings, defaultISettings, client) {
+        // Determine if this is edit mode
+        const isEditMode = !!client;
         // Create modal HTML with I-settings
         const modalHtml = `
             <div id="clientModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center">
@@ -894,7 +898,8 @@ class AmneziaApp {
                                     Client Name
                                 </label>
                                 <input type="text" id="clientName" value="${clientName}"
-                                    class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                                    class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 ${isEditMode ? 'bg-gray-100 cursor-not-allowed' : ''}"
+                                    ${isEditMode ? 'readonly' : ''}
                                     required>
                             </div>
                             

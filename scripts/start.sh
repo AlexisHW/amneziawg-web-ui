@@ -59,10 +59,14 @@ if [ -n "$SSL_EMAIL" ] && [ "$SSL_DOMAIN" ]; then
 
         certbot install --cert-name $SSL_DOMAIN
 
-        sed -i "/ssl_certificate_key \/etc\/letsencrypt\/live\/$SSL_DOMAIN\/privkey.pem;/a\\
+        if grep -q "include /etc/letsencrypt/" $NGINX_CONFIG_FILE; then
+            echo "LE SSL nginx config is already in place"
+        else
+            sed -i "/ssl_certificate_key \/etc\/letsencrypt\/live\/$SSL_DOMAIN\/privkey.pem;/a\\
     include /etc/letsencrypt/options-ssl-nginx.conf;\\
     ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;" \
-            $NGINX_CONFIG_FILE
+                $NGINX_CONFIG_FILE
+        fi
 
         croncmd="/usr/bin/certbot renew --quiet --deploy-hook \"nginx -s reload\""
         cronjob="30 3 * * 2 $croncmd"

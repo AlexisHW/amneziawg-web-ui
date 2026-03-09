@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## Version 1.6.3
+
+### Improvements
+- Allow use of ranges in H1-H4 input fields
+- Hide possibility to edit client name in client edit mode to avoid confusions.This functionality is not supported.
+
 ## Version 1.6.2
 
 ### Improvement

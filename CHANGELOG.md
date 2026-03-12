@@ -1,23 +1,23 @@
 # CHANGELOG
 
-## Version 1.6.3
+## Version 1.6.4
+### Fix
+- Fixed full server config is not displayed if there are cyrillic letters in the server name
 
+## Version 1.6.3
 ### Improvements
 - Allow use of ranges in H1-H4 input fields
 - Hide possibility to edit client name in client edit mode to avoid confusions.This functionality is not supported.
 
 ## Version 1.6.2
-
 ### Improvement
 - Added conditional check if LE SSL config is already included. May be useful when container is stopped and restarted without recreation.
 
 ## Version 1.6.1
-
 ### Fix
 - Fixed an issue for previously used client IPs of deleted clients are not properly assigned.
 
 ## Version 1.6.0
-
 ### New Features
 - AmneziaWG 2.0 support (added parameters S3 and S4)
 
@@ -43,13 +43,11 @@ In WireGuard, Cookie Reply messages are used when the server is under load and i
 With all parameters set to zero, behavior defaults to standard WireGuard — facilitating a smooth migration.
 
 ## Version 1.5.2
-
 ### Improvements
 - UI was updated for a compact view.
 - Create Test server button removed
 
 ## Version 1.5.1
-
 ### New Features
 - For each client traffic, remote endpoint and last handshake time is displayed. Data is auto-refreshed every 5 seconds without API requests.
 
@@ -57,28 +55,22 @@ With all parameters set to zero, behavior defaults to standard WireGuard — fac
 - Fixed websocket polling issue with custom ports
 
 ## Version 1.5.0 - AWG 1.5 support
-
 ### New Features
 
 - Added capability to configure I1-I5 settings for existing and new clients. This is a client-only configuration. In case awg 1.5 support is enabled but I-values are not provided, then only I1 default setting is applied which is recommended by AWG developers.
 
-# CHANGELOG
-
 ## Version 1.4.1 - IP range support
-
 ### New Features
 
 - Now it's possible to limit connections to the web server with a IP range(s). Connections from the not allowed IP address will immediately get 403 reply.
 
 ## Version 1.4.0 - SSL support
-
 ### New Features
 
 - SSL certificate generation at start and regular renewal support. Check [README.md](README.md).
 - iptables-legacy support: if nft-iptables are not detected on host, then legacy iptables-legacy is set as default for running iptables command.
 
 ## Version 1.3.2 - obfuscation adjustment
-
 ### Fix
 Minor fixes for generation of obfuscations params.
 Adjusted default MTU.
@@ -89,12 +81,10 @@ Improved params generation validation.
 
 
 ## Version 1.3.1 - healthcheck
-
 ### Fix
 Fixed healthcheck on custom port. Added `/status` endpoint for health check.
 
 ## Version 1.3.0 - Client traffic
-
 ### New Features
 Enables monitoring of per-client traffic statistics on a given server and displays the current traffic usage in the UI. After server is stopped the data on the network adapters is reset.
 

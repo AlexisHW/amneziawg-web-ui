@@ -1278,7 +1278,7 @@ class AmneziaApp {
     }
 
     displayRawConfigModal(config) {
-            // Encode the config for safe passing through HTML attribute
+        // Encode the config for safe passing through HTML attribute
         const encodedConfig = encodeURIComponent(JSON.stringify(config));
         const modalHtml = `
             <div id="rawConfigModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">

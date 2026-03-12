@@ -1278,6 +1278,8 @@ class AmneziaApp {
     }
 
     displayRawConfigModal(config) {
+            // Encode the config for safe passing through HTML attribute
+        const encodedConfig = encodeURIComponent(JSON.stringify(config));
         const modalHtml = `
             <div id="rawConfigModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
                 <div class="relative top-10 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-2/3 shadow-lg rounded-md bg-white">
@@ -1294,7 +1296,7 @@ class AmneziaApp {
                         <div class="mb-4">
                             <div class="flex justify-between items-center mb-2">
                                 <span class="text-sm text-gray-600">Config path: ${config.config_path}</span>
-                                <button onclick="amneziaApp.copyToClipboard('${btoa(JSON.stringify(config))}')"
+                                <button onclick="amneziaApp.copyToClipboard(decodeURIComponent('${encodedConfig}'))"
                                         class="bg-gray-500 text-white px-3 py-1 rounded text-xs hover:bg-gray-600">
                                     Copy JSON
                                 </button>

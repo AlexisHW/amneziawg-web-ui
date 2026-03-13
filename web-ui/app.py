@@ -387,7 +387,7 @@ H4 = {obfuscation_params['H4']}
         unbound_ips = server.get("unbound_nat_ips", [])
         if unbound_ips:
             unbound_ip = unbound_ips.pop(0)
-            server["unbound_nat_ips"] = unbound_ips 
+            server["unbound_nat_ips"] = unbound_ips
             self.save_config()
             return unbound_ip
 
@@ -470,7 +470,7 @@ H4 = {obfuscation_params['H4']}
             "name": client_name,
             "server_id": server_id,
             "server_name": server["name"],
-            "status": "inactive",
+            "status": "active",  # Set initial status to active
             "created_at": time.time(),
             "client_private_key": client_keys["private_key"],
             "client_public_key": client_keys["public_key"],
@@ -699,6 +699,109 @@ PersistentKeepalive = 25
         config_content = self.generate_wireguard_client_config(server, client, include_comments=True)
         
         return client, config_content
+    
+    def suspend_client(self, server_id, client_id):
+        """Suspend a client by removing its config from the main file"""
+        server = next((s for s in self.config['servers'] if s['id'] == server_id), None)
+        if not server:
+            return False, "Server not found"
+
+        client = next((c for c in server["clients"] if c["id"] == client_id), None)
+        if not client:
+            return False, "Client not found"
+
+        # Create suspended configs directory if it doesn't exist
+        suspended_dir = os.path.join(WIREGUARD_CONFIG_DIR, 'suspended')
+        os.makedirs(suspended_dir, exist_ok=True)
+
+        # Extract and save the client's peer block to suspended directory
+        if os.path.exists(server['config_path']):
+            with open(server['config_path'], 'r') as f:
+                content = f.read()
+
+            # Find the client's peer block
+            client_marker = f"# Client: {client['name']}"
+            lines = content.split('\n')
+            
+            peer_block = []
+            in_peer_block = False
+            for i, line in enumerate(lines):
+                if line.strip() == client_marker:
+                    in_peer_block = True
+                    peer_block.append(line)
+                elif in_peer_block and line.strip().startswith('[Peer]'):
+                    peer_block.append(line)
+                elif in_peer_block and line.strip() and not line.strip().startswith('#'):
+                    peer_block.append(line)
+                elif in_peer_block and not line.strip():
+                    peer_block.append(line)
+                    break
+
+            if peer_block:
+                suspended_path = os.path.join(suspended_dir, f"{client_id}.conf")
+                with open(suspended_path, 'w') as f:
+                    f.write('\n'.join(peer_block))
+
+        # Remove client from server config
+        self.rewrite_server_conf_without_client(server, client)
+        
+        # Update client status
+        client['status'] = 'suspended'
+        if client_id in self.config["clients"]:
+            self.config["clients"][client_id]['status'] = 'suspended'
+
+        self.save_config()
+
+        # Apply live config if server is running
+        if server['status'] == 'running':
+            self.apply_live_config(server['interface'])
+
+        return True, "Client suspended successfully"
+
+    def activate_client(self, server_id, client_id):
+        """Activate a suspended client by restoring its config"""
+        server = next((s for s in self.config['servers'] if s['id'] == server_id), None)
+        if not server:
+            return False, "Server not found"
+
+        client = next((c for c in server["clients"] if c["id"] == client_id), None)
+        if not client:
+            return False, "Client not found"
+
+        # Check if client is suspended
+        if client.get('status') != 'suspended':
+            return False, "Client is not suspended"
+
+        # Check for suspended config file
+        suspended_dir = os.path.join(WIREGUARD_CONFIG_DIR, 'suspended')
+        suspended_path = os.path.join(suspended_dir, f"{client_id}.conf")
+
+        if not os.path.exists(suspended_path):
+            return False, "Suspended config file not found"
+
+        # Read the suspended config
+        with open(suspended_path, 'r') as f:
+            suspended_config = f.read()
+
+        # Append config back to server config
+        with open(server['config_path'], 'a') as f:
+            f.write('\n' + suspended_config)
+
+        # Remove suspended config file
+        os.remove(suspended_path)
+
+        # Update client status
+        client['status'] = 'active'
+        if client_id in self.config["clients"]:
+            self.config["clients"][client_id]['status'] = 'active'
+
+        self.save_config()
+
+        # Apply live config if server is running
+        if server['status'] == 'running':
+            self.apply_live_config(server['interface'])
+
+        return True, "Client activated successfully"
 
     def setup_iptables(self, interface, subnet):
         """Setup iptables rules for WireGuard interface"""
@@ -834,13 +937,14 @@ PersistentKeepalive = 25
             # Get all clients from global dict
             clients = []
             for client_id, client in self.config["clients"].items():
-                # Ensure I-settings fields exist
                 client_copy = client.copy()
                 if 'apply_i_settings' not in client_copy:
                     client_copy['apply_i_settings'] = False
                 if 'i_settings' not in client_copy:
                     client_copy['i_settings'] = {}
                 clients.append(client_copy)
+                if 'status' not in client_copy:
+                    client_copy['status'] = 'active'
             return clients
 
     def get_traffic_for_server(self, server_id):
@@ -1309,6 +1413,22 @@ def get_client_config_both(server_id, client_id):
         "clean_length": len(clean_config),
         "full_length": len(full_config)
     })
+    
+@app.route('/api/servers/<server_id>/clients/<client_id>/suspend', methods=['POST'])
+def suspend_client(server_id, client_id):
+    """Suspend a client"""
+    success, message = amnezia_manager.suspend_client(server_id, client_id)
+    if success:
+        return jsonify({"status": "suspended", "client_id": client_id, "message": message})
+    return jsonify({"error": message}), 404
+
+@app.route('/api/servers/<server_id>/clients/<client_id>/activate', methods=['POST'])
+def activate_client(server_id, client_id):
+    """Activate a suspended client"""
+    success, message = amnezia_manager.activate_client(server_id, client_id)
+    if success:
+        return jsonify({"status": "activated", "client_id": client_id, "message": message})
+    return jsonify({"error": message}), 404
     
 @app.route('/api/servers/<server_id>/traffic')
 def get_server_traffic(server_id):

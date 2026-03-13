@@ -1,5 +1,15 @@
 # CHANGELOG
 
+## Version 1.7.0
+### New Features
+- Support for client suspend and reactivate
+
+### Technical details
+- Added new API endpoints `/suspend` and `/activate`
+- Suspended client configs are stored in `/etc/amnezia/amneziawg/suspended/` as `{client_id}.conf`
+- Main JSON config maintains client records with updated status
+- Live server config is updated immediately, removing/adding the peer block
+
 ## Version 1.6.4
 ### Fix
 - Fixed full server config is not displayed if there are cyrillic letters in the server name

@@ -710,11 +710,17 @@ class AmneziaApp {
                         endpoint: ''
                     };
                     const hasISettings = client.apply_i_settings || false;
+                    const clientStatus = client.status || 'active';
                     
                     // Format handshake time for display
                     const handshakeDisplay = clientData.last_handshake !== 'Never'
                         ? `🕒 ${clientData.last_handshake}`
                         : '🕒 Never';
+                    
+                    // Status badge
+                    const statusBadge = clientStatus === 'suspended'
+                        ? '<span class="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full ml-2">Suspended</span>'
+                        : '<span class="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full ml-2">Active</span>';
                     
                     return `
                     <div class="flex justify-between items-center bg-gray-50 p-3 rounded-lg hover:bg-gray-100 transition-colors duration-200 client-item"
@@ -731,6 +737,7 @@ class AmneziaApp {
                                     <span class="font-medium">${client.name}</span>
                                     <span class="text-sm text-gray-600 ml-2">${client.client_ip}</span>
                                     ${hasISettings ? '<span class="text-xs bg-purple-100 text-purple-800 px-2 py-1 rounded-full ml-2">I-settings</span>' : ''}
+                                    ${statusBadge}
                                 </div>
                                 <div class="flex items-center space-x-4 mt-1">
                                     <span class="text-xs text-gray-500 client-traffic">
@@ -771,6 +778,25 @@ class AmneziaApp {
                                 </svg>
                                 Download
                             </button>
+                            ${clientStatus === 'suspended'
+                                ? `<button onclick="amneziaApp.activateClient('${serverId}', '${client.id}')"
+                                        class="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 shadow hover:shadow-md flex items-center"
+                                        title="Activate Client">
+                                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/>
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                    </svg>
+                                    Activate
+                                </button>`
+                                : `<button onclick="amneziaApp.suspendClient('${serverId}', '${client.id}')"
+                                        class="bg-gradient-to-r from-yellow-500 to-amber-500 hover:from-yellow-600 hover:to-amber-600 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 shadow hover:shadow-md flex items-center"
+                                        title="Suspend Client">
+                                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                    </svg>
+                                    Suspend
+                                </button>`
+                            }
                             <button onclick="amneziaApp.deleteClient('${serverId}', '${client.id}')"
                                     class="bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 shadow hover:shadow-md flex items-center">
                                 <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1125,6 +1151,46 @@ class AmneziaApp {
                 console.error('Error fetching client:', error);
                 this.showTempMessage('Error loading client: ' + error.message, 'error');
             });
+    }
+
+    suspendClient(serverId, clientId) {
+        if (confirm('Are you sure you want to suspend this client? The client will lose connection until reactivated.')) {
+            fetch(`/api/servers/${serverId}/clients/${clientId}/suspend`, {
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+                this.showTempMessage('Client suspended successfully', 'success');
+                this.loadServers();
+            })
+            .catch(error => {
+                console.error('Error suspending client:', error);
+                alert('Error suspending client: ' + error.message);
+            });
+        }
+    }
+
+    activateClient(serverId, clientId) {
+        if (confirm('Are you sure you want to activate this suspended client?')) {
+            fetch(`/api/servers/${serverId}/clients/${clientId}/activate`, {
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+                this.showTempMessage('Client activated successfully', 'success');
+                this.loadServers();
+            })
+            .catch(error => {
+                console.error('Error activating client:', error);
+                alert('Error activating client: ' + error.message);
+            });
+        }
     }
 
     loadDefaultISettings() {

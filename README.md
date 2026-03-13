@@ -13,7 +13,7 @@ All server configuration is done via web interface or via API endpoints. Providi
 
 *   **Web-based Management**: Intuitive UI for managing VPN servers and clients
 *   **AmneziaWG Integration**: Full support for AmneziaWG's obfuscation features
-*   **Client Management**: Generate and download client configurations
+*   **Client Management**: Generate and download client configurations. Suspend and reactivate clients on live server.
 *   **Real-time Monitoring**: Live server status and connection monitoring
 *   **Auto-start**: Automatic server startup on container restart
 *   **IPTables Automation**: Automatic firewall configuration

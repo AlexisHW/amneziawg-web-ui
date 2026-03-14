@@ -1,6 +1,14 @@
-FROM amneziavpn/amneziawg-go:latest
+FROM golang:alpine AS builder
+RUN apk add --no-cache git make gcc musl-dev linux-headers
+RUN git clone https://github.com/amnezia-vpn/amneziawg-go.git && cd amneziawg-go && make && make install
+RUN git clone https://github.com/amnezia-vpn/amneziawg-tools.git && cd amneziawg-tools/src && make && make WITH_WGQUICK=yes install
 
-# Install dependencies for web UI
+FROM alpine:3.19
+
+COPY --from=builder /usr/bin/amneziawg-go /usr/bin/amneziawg-go
+COPY --from=builder /usr/bin/awg /usr/bin/awg
+COPY --from=builder /usr/bin/awg-quick /usr/bin/awg-quick
+
 RUN apk update && apk add \
     python3 \
     py3-pip \
@@ -11,6 +19,9 @@ RUN apk update && apk add \
     certbot \
     certbot-nginx \
     iptables-legacy \
+    bash \
+    iproute2 \
+    openresolv \
     && rm -rf /var/cache/apk/*
 
 RUN pip3 install flask flask_socketio flask-wtf requests python-socketio eventlet --break-system-packages

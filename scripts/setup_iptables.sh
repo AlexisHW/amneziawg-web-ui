@@ -38,4 +38,9 @@ iptables -A FORWARD -m state --state ESTABLISHED,RELATED -j ACCEPT
 # Enable NAT for VPN traffic
 iptables -t nat -A POSTROUTING -s $SUBNET -o eth+ -j MASQUERADE
 
-echo "iptables rules set up successfully for $INTERFACE"
+if [ $? -eq 0 ]; then
+    echo "iptables rules set up successfully for $INTERFACE"
+else
+    echo "iptables set up failed for $INTERFACE"
+    exit 1
+fi

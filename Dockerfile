@@ -18,6 +18,7 @@ RUN apk update && apk add \
     apache2-utils \
     certbot \
     certbot-nginx \
+    iptables \
     iptables-legacy \
     bash \
     iproute2 \

@@ -909,10 +909,11 @@ PersistentKeepalive = 25
 
         try:
             # Check if interface exists and is up
-            result = self.execute_command(f"ip link show {server['interface']} 2>/dev/null")
-            if result and "state UNKNOWN" in result:
+            result = subprocess.run(["ip", "link", "show", server['interface']], capture_output=True, text=True)
+            if "state UNKNOWN" in result.stdout:
                 return "running"
             else:
+                print(f"Server {server['interface']} currently stopped")
                 return "stopped"
         except:
             return "stopped"

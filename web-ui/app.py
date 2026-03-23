@@ -205,7 +205,7 @@ class AmneziaManager:
     def generate_preshared_key(self):
         """Generate preshared key"""
         try:
-            return self.execute_command("wg genpsk")
+            return self.execute_command("awg genpsk")
         except:
             return base64.b64encode(os.urandom(32)).decode('utf-8')
 

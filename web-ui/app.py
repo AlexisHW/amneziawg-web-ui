@@ -638,7 +638,7 @@ H4 = {params['H4']}
 PublicKey = {server['server_public_key']}
 PresharedKey = {client_config['preshared_key']}
 Endpoint = {server['public_ip']}:{server['port']}
-AllowedIPs = 0.0.0.0/0
+AllowedIPs = 0.0.0.0/0, ::/0
 PersistentKeepalive = 25
 """
         return config

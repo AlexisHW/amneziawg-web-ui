@@ -898,12 +898,37 @@ class AmneziaApp {
     }
 
     showClientModalWithDefaults(serverId, modalTitle, clientName, applyISettings, iSettings, defaultISettings, client) {
-        // Determine if this is edit mode
         const isEditMode = !!client;
-        // Create modal HTML with I-settings
+        
+        // Format created_at if it exists
+        let created_at_html = '';
+        if (client && client.created_at) {
+            const createdDate = new Date(client.created_at * 1000);
+            created_at_html = `
+                <div class="bg-gray-50 p-3 rounded-lg mb-4">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <span class="text-xs text-gray-500">Created at:</span>
+                            <span class="text-sm font-mono ml-2">${createdDate.toLocaleString()}</span>
+                        </div>
+                        <div class="text-xs text-gray-400">
+                            ${Math.floor((Date.now() - createdDate) / (1000 * 60 * 60 * 24))} days ago
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        // Format suspend_at if it exists
+        let suspend_at_value = '';
+        if (client && client.suspend_at) {
+            const suspendDate = new Date(client.suspend_at * 1000);
+            suspend_at_value = suspendDate.toISOString().slice(0, 16);
+        }
+        
         const modalHtml = `
             <div id="clientModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center">
-                <div class="relative p-8 border w-11/12 md:w-3/4 lg:w-2/3 xl:w-1/2 shadow-2xl rounded-2xl bg-white">
+                <div class="relative p-8 border w-11/12 md:w-3/4 lg:w-2/3 xl:w-1/2 shadow-2xl rounded-2xl bg-white max-h-[90vh] overflow-y-auto">
                     <div class="flex flex-col">
                         <div class="flex justify-between items-center w-full mb-6">
                             <h3 class="text-xl font-bold text-gray-900">${modalTitle}</h3>
@@ -914,6 +939,8 @@ class AmneziaApp {
                                 </svg>
                             </button>
                         </div>
+                        
+                        ${created_at_html}
                         
                         <form id="clientForm" class="space-y-6">
                             <input type="hidden" id="serverId" value="${serverId}">
@@ -928,6 +955,20 @@ class AmneziaApp {
                                     ${isEditMode ? 'readonly' : ''}
                                     required>
                             </div>
+                            
+                            <!-- Scheduled Suspension Section (only for edit mode) -->
+                            ${isEditMode ? `
+                            <div class="pt-4 border-t border-gray-200">
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    Auto-suspend client at:
+                                </label>
+                                <input type="datetime-local" id="suspendAt" value="${suspend_at_value}"
+                                    class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                                <p class="text-xs text-gray-500 mt-1">
+                                    Leave empty to disable auto-suspension. Client will be automatically suspended at the specified date/time.
+                                </p>
+                            </div>
+                            ` : ''}
                             
                             <div class="pt-4 border-t border-gray-200">
                                 <div class="flex items-center mb-4">
@@ -1061,12 +1102,12 @@ class AmneziaApp {
             this.showTempMessage('Client name is required', 'error');
             return;
         }
-        
+
         const data = {
             name: clientName,
             apply_i_settings: applyISettings
         };
-        
+
         // Collect I-settings if checkbox is checked
         if (applyISettings) {
             const iSettings = {};
@@ -1079,46 +1120,92 @@ class AmneziaApp {
                     }
                 }
             }
-            
-            // Always include i_settings object, even if empty
-            // Backend will use defaults when i_settings is empty but apply_i_settings=True
             data.i_settings = iSettings;
         }
-        
-        console.log('Saving client with data:', data);
         
         let url, method;
         
         if (clientId) {
-            // Update existing client - use the i-settings endpoint
+            // Update existing client - use the i-settings endpoint first
             url = `/api/servers/${serverId}/clients/${clientId}/i-settings`;
             method = 'PUT';
+
+            // Save client I-settings first
+            fetch(url, {
+                method: method,
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(data)
+            })
+            .then(response => response.json())
+            .then(result => {
+                if (result.error) {
+                    throw new Error(result.error);
+                }
+
+                // Then save suspension time if set
+                const suspendAtInput = document.getElementById('suspendAt');
+                if (suspendAtInput) {
+                    const suspendAtLocal = suspendAtInput.value; // e.g. "2026-03-30T02:58"
+                    let suspendAtUTC = null;
+
+                    if (suspendAtLocal) {
+                        const [datePart, timePart] = suspendAtLocal.split('T');
+                        const [year, month, day] = datePart.split('-').map(Number);
+                        const [hour, minute] = timePart.split(':').map(Number);
+                        const localDate = new Date(year, month - 1, day, hour, minute);
+                        suspendAtUTC = localDate.toISOString();
+                    }
+
+                    return fetch(`/api/servers/${serverId}/clients/${clientId}/suspend-time`, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ suspend_at: suspendAtUTC || null })
+                    });
+                }
+                return null;
+            })
+            .then(suspensionResult => {
+                if (suspensionResult && !suspensionResult.ok) {
+                    console.warn('Failed to set suspension time');
+                }
+                this.showTempMessage('Client updated successfully!', 'success');
+                this.closeClientModal();
+                this.loadServers();
+            })
+            .catch(error => {
+                console.error('Error saving client:', error);
+                this.showTempMessage(`Error saving client: ${error.message}`, 'error');
+            });
         } else {
             // Create new client
             url = `/api/servers/${serverId}/clients`;
             method = 'POST';
+
+            fetch(url, {
+                method: method,
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(data)
+            })
+            .then(response => response.json())
+            .then(result => {
+                if (result.error) {
+                    throw new Error(result.error);
+                }
+                this.showTempMessage('Client added successfully!', 'success');
+                this.closeClientModal();
+                this.loadServers();
+            })
+            .catch(error => {
+                console.error('Error saving client:', error);
+                this.showTempMessage(`Error saving client: ${error.message}`, 'error');
+            });
         }
-        
-        fetch(url, {
-            method: method,
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(data)
-        })
-        .then(response => response.json())
-        .then(result => {
-            if (result.error) {
-                throw new Error(result.error);
-            }
-            this.showTempMessage(clientId ? 'Client updated successfully!' : 'Client added successfully!', 'success');
-            this.closeClientModal();
-            this.loadServers();
-        })
-        .catch(error => {
-            console.error('Error saving client:', error);
-            this.showTempMessage(`Error saving client: ${error.message}`, 'error');
-        });
     }
 
     addClient(serverId) {
@@ -1412,6 +1499,20 @@ class AmneziaApp {
                             </button>
                         </div>
                         
+                        <!-- Date Information Section -->
+                        <div id="dateInfo" class="mb-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                            <div class="flex justify-between items-center">
+                                <div class="text-sm">
+                                    <span class="font-medium text-gray-700">Created:</span>
+                                    <span id="createdAt" class="text-gray-600 ml-2">Loading...</span>
+                                </div>
+                                <div class="text-sm">
+                                    <span class="font-medium text-gray-700">Auto-suspend:</span>
+                                    <span id="suspendAt" class="text-gray-600 ml-2">Not set</span>
+                                </div>
+                            </div>
+                        </div>
+                        
                         <!-- QR Too Large Warning -->
                         <div id="qrTooLargeWarning" class="mb-4 p-4 bg-yellow-50 border-l-4 border-yellow-400 hidden">
                             <div class="flex">
@@ -1453,7 +1554,7 @@ class AmneziaApp {
                             <div class="lg:w-3/5">
                                 <div class="mb-4">
                                     <div class="flex items-center justify-between mb-2">
-                                        <label class="block text-sm font-medium text-gray-700">Configuration Text</label>
+                                        <label class="block text-sm font-medium text-gray-700">Configuration preview</label>
                                         <div class="flex space-x-2">
                                             <button onclick="amneziaApp.toggleConfigView()"
                                                     class="text-blue-500 hover:text-blue-700 text-sm font-medium px-3 py-1.5 rounded-lg border border-blue-200 hover:bg-blue-50 transition-colors duration-200">
@@ -1525,6 +1626,41 @@ class AmneziaApp {
                 this.currentCleanConfig = data.clean_config || '';
                 this.currentFullConfig = data.full_config || '';
                 this.currentConfigType = 'clean';
+                
+                // Update date information in the modal
+                if (data.created_at) {
+                    const createdDate = new Date(data.created_at * 1000);
+                    const formattedCreatedDate = createdDate.toLocaleString('en-GB', {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        second: '2-digit'
+                    });
+                    const createdAtSpan = document.getElementById('createdAt');
+                    if (createdAtSpan) createdAtSpan.textContent = formattedCreatedDate;
+                } else {
+                    const createdAtSpan = document.getElementById('createdAt');
+                    if (createdAtSpan) createdAtSpan.textContent = 'Unknown';
+                }
+                
+                if (data.suspend_at) {
+                    const suspendDate = new Date(data.suspend_at * 1000);
+                    const formattedSuspendDate = suspendDate.toLocaleString('en-GB', {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        second: '2-digit'
+                    });
+                    const suspendAtSpan = document.getElementById('suspendAt');
+                    if (suspendAtSpan) suspendAtSpan.textContent = formattedSuspendDate;
+                } else {
+                    const suspendAtSpan = document.getElementById('suspendAt');
+                    if (suspendAtSpan) suspendAtSpan.textContent = 'Not set';
+                }
             } else {
                 const configUrl = `/api/servers/${this.qrServerId}/clients/${this.qrClientId}/config`;
                 const configResponse = await fetch(configUrl);

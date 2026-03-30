@@ -98,6 +98,8 @@ class AmneziaManager:
             self.auto_start_servers()
             
         self.start_traffic_updates()  # AUTO-START the traffic thread
+        self.suspend_update_interval = 60  # Check every minute
+        self.start_suspension_checker()  # Start scheduled suspension checker
 
     def ensure_directories(self):
         os.makedirs(CONFIG_DIR, exist_ok=True)
@@ -592,7 +594,7 @@ AllowedIPs = {client_ip}/32
             config = f"""# AmneziaWG Client Configuration
 # Server: {server['name']}
 # Client: {client_config['name']}
-# Generated: {time.ctime()}
+# Generated: {time.ctime(client_config['created_at'])}
 # Server IP: {server['public_ip']}:{server['port']}
 """
 
@@ -638,7 +640,7 @@ H4 = {params['H4']}
 PublicKey = {server['server_public_key']}
 PresharedKey = {client_config['preshared_key']}
 Endpoint = {server['public_ip']}:{server['port']}
-AllowedIPs = 0.0.0.0/0
+AllowedIPs = 0.0.0.0/0, ::/0
 PersistentKeepalive = 25
 """
         return config
@@ -802,6 +804,53 @@ PersistentKeepalive = 25
             self.apply_live_config(server['interface'])
 
         return True, "Client activated successfully"
+    
+    def start_suspension_checker(self):
+        """Start background task to check scheduled suspensions"""
+        def check_suspensions():
+            while True:
+                try:
+                    current_time = time.time()
+                    for server in self.config['servers']:
+                        for client in server['clients']:
+                            suspend_at = client.get('suspend_at')
+                            if suspend_at and client.get('status') == 'active':
+                                if current_time >= suspend_at:
+                                    # Reuse existing suspend endpoint logic
+                                    self.suspend_client(server['id'], client['id'])
+                                    print(f"Auto-suspended client {client['name']} at {time.ctime()}")
+                except Exception as e:
+                    print(f"Error checking suspensions: {e}")
+                time.sleep(self.suspend_update_interval)
+        
+        suspension_thread = threading.Thread(target=check_suspensions, daemon=True)
+        suspension_thread.start()
+
+    def update_client_suspend_time(self, server_id, client_id, suspend_at=None):
+        """Update client suspension time (without actually suspending)"""
+        server = next((s for s in self.config['servers'] if s['id'] == server_id), None)
+        if not server:
+            return None, "Server not found"
+
+        client = next((c for c in server["clients"] if c["id"] == client_id), None)
+        if not client:
+            return None, "Client not found"
+        
+        # Update suspension time
+        if suspend_at:
+            client['suspend_at'] = suspend_at
+        else:
+            client.pop('suspend_at', None)
+        
+        # Update global clients dict
+        if client_id in self.config["clients"]:
+            if suspend_at:
+                self.config["clients"][client_id]['suspend_at'] = suspend_at
+            else:
+                self.config["clients"][client_id].pop('suspend_at', None)
+        
+        self.save_config()
+        return client, "Suspension time updated"
 
     def setup_iptables(self, interface, subnet):
         """Setup iptables rules for WireGuard interface"""
@@ -1411,7 +1460,11 @@ def get_client_config_both(server_id, client_id):
         "clean_config": clean_config,
         "full_config": full_config,
         "clean_length": len(clean_config),
-        "full_length": len(full_config)
+        "full_length": len(full_config),
+        "created_at": client['created_at'],
+        "created_at_readable": time.ctime(client.get('created_at')) if client.get('created_at') else None,
+        "suspend_at": client.get('suspend_at'),
+        "suspend_at_readable": time.ctime(client.get('suspend_at')) if client.get('suspend_at') else None
     })
     
 @app.route('/api/servers/<server_id>/clients/<client_id>/suspend', methods=['POST'])
@@ -1428,6 +1481,29 @@ def activate_client(server_id, client_id):
     success, message = amnezia_manager.activate_client(server_id, client_id)
     if success:
         return jsonify({"status": "activated", "client_id": client_id, "message": message})
+    return jsonify({"error": message}), 404
+
+@app.route('/api/servers/<server_id>/clients/<client_id>/suspend-time', methods=['PUT'])
+def update_client_suspend_time(server_id, client_id):
+    """Update client scheduled suspension time"""
+    data = request.json
+    suspend_at = data.get('suspend_at')
+    
+    # Convert ISO datetime string to timestamp if provided
+    if suspend_at:
+        from datetime import datetime
+        try:
+            dt = datetime.fromisoformat(suspend_at.replace('Z', '+00:00'))
+            suspend_at = dt.timestamp()
+        except:
+            return jsonify({"error": "Invalid datetime format"}), 400
+    
+    client, message = amnezia_manager.update_client_suspend_time(server_id, client_id, suspend_at)
+    if client:
+        return jsonify({
+            "client": client,
+            "message": message
+        })
     return jsonify({"error": message}), 404
     
 @app.route('/api/servers/<server_id>/traffic')

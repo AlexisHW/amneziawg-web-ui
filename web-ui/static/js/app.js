@@ -898,6 +898,7 @@ class AmneziaApp {
     }
 
     showClientModalWithDefaults(serverId, modalTitle, clientName, applyISettings, iSettings, defaultISettings, client) {
+        // Determine if this is edit mode
         const isEditMode = !!client;
         
         // Format created_at if it exists
@@ -1122,6 +1123,8 @@ class AmneziaApp {
             }
             data.i_settings = iSettings;
         }
+        
+        console.log('Saving client with data:', data);
         
         let url, method;
         

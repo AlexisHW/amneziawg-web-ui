@@ -3,7 +3,7 @@
 ## Version 1.7.1
 ### New Features
 - Client creation date is displayed in Edit client and QR code views.
-- Support for Scheduled clients suspend
+- Support for Scheduled clients suspension
 > [!NOTE]
 > When suspend date is removed (cleaned) client is NOT reactivated automatically. This is done on purpose - use manual activation.
 > When client is auto-suspended by schedule it's state is not auto refreshed in the UI. Refresh the page manually.

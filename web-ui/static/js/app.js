@@ -969,19 +969,19 @@ class AmneziaApp {
                             <!-- Scheduled Suspension Section (only for edit mode) -->
                             ${isEditMode ? `
                             <div class="pt-4 border-t border-gray-200 flex items-center space-x-2">
-                            <label for="suspendAt" class="block text-sm font-medium text-gray-700 mb-2 flex-1">
-                                Auto-suspend client at:
-                            </label>
-                            <button type="button" id="clearSuspendAt" onclick="document.getElementById('suspendAt').value = ''"
-                                class="px-3 py-1 text-sm bg-gray-200 rounded hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                Reset
-                            </button>
+                                <label for="suspendAt" class="block text-sm font-medium text-gray-700 mb-2 flex-1">
+                                    Auto-suspend client at:
+                                </label>
+                                <button type="button" id="clearSuspendAt" onclick="document.getElementById('suspendAt').value = ''"
+                                    class="px-3 py-1 text-sm bg-gray-200 rounded hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                    Reset
+                                </button>
                             </div>
                             <input type="datetime-local" id="suspendAt" value="${suspend_at_value}"
-                            class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mt-1">
+                                class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mt-1">
                             <p class="text-xs text-gray-500 mt-1">
-                            Client will be automatically suspended at the specified date/time.<br>
-                            Leave empty to disable auto-suspension (still need to activate client after suspension).
+                                Client will be automatically suspended at the specified date/time.<br>
+                                Leave empty to disable auto-suspension (still need to activate client after suspension).
                             </p>
                             ` : ''}
                             

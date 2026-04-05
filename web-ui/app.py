@@ -614,11 +614,11 @@ Jmax = {params['Jmax']}
 S1 = {params['S1']}
 S2 = {params['S2']}
 """
-        if client_config.get('awg2_enabled', False):
-            config += f"""S3 = {params['S3']}
+            if client_config.get('awg2_enabled', False):
+                config += f"""S3 = {params['S3']}
 S4 = {params['S4']}
 """
-        config += f"""H1 = {params['H1']}
+            config += f"""H1 = {params['H1']}
 H2 = {params['H2']}
 H3 = {params['H3']}
 H4 = {params['H4']}

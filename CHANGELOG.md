@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## Version 1.8.0
+### Improvements
+- Switch docker build to source packages instead of ready go-image. ***Potentially*** can be a **BREAKING CHANGE**
+- Add ARM64 build support (ready ARM64 docker image is not provided in DockerHub)
+### Fix
+- Fix an issue when preshared key is not properly generated
+
 ## Version 1.7.2
 ### Fix
 - Client was not properly added when server obfuscation disabled

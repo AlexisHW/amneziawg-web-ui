@@ -186,9 +186,9 @@ class AmneziaManager:
     def generate_wireguard_keys(self):
         """Generate real WireGuard keys"""
         try:
-            private_key = self.execute_command("wg genkey")
+            private_key = self.execute_command("awg genkey")
             if private_key:
-                public_key = self.execute_command(f"echo '{private_key}' | wg pubkey")
+                public_key = self.execute_command(f"echo '{private_key}' | awg pubkey")
                 return {
                     "private_key": private_key,
                     "public_key": public_key

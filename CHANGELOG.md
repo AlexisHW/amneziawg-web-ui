@@ -1,5 +1,9 @@
 # CHANGELOG
 
+## Version 1.8.1
+### Fix
+- Fix client keys generation
+
 ## Version 1.8.0
 ### Improvements
 - Switch docker build to source packages instead of ready go-image. ***Potentially*** can be a **BREAKING CHANGE**

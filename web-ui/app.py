@@ -997,7 +997,7 @@ PersistentKeepalive = 25
                     client_copy['status'] = 'active'
             return clients
 
-    def get_traffic_for_server(self, server_id):
+    def get_peer_traffic_for_server(self, server_id):
         server = next((s for s in self.config['servers'] if s['id'] == server_id), None)
         if not server:
             return None
@@ -1109,30 +1109,81 @@ PersistentKeepalive = 25
 
         return clients_data
     
-    def start_traffic_updates(self):
-            """Start traffic updates using SocketIO background task"""
-            def update_traffic():
-                while True:
-                    try:
-                        all_traffic = {}
-                        for server in self.config['servers']:
-                            server_id = server['id']
-                            traffic = self.get_traffic_for_server(server_id)
-                            if traffic:
-                                all_traffic[server_id] = traffic
-                        
-                        if all_traffic:
-                            socketio.emit('traffic_update', {
-                                'timestamp': time.time(),
-                                'traffic': all_traffic
-                            })
-                        
-                    except Exception as e:
-                        print(f"Traffic update error: {e}")
-                    
-                    socketio.sleep(self.traffic_update_interval)
+    def get_server_interface_traffic(self, interface_name):
+        """Get RX/TX traffic for a server interface using ifconfig"""
+        try:
+            result = self.execute_command(f"ifconfig {interface_name}")
+            if not result:
+                return None
             
-            socketio.start_background_task(update_traffic)
+            rx_bytes = "0 B"
+            tx_bytes = "0 B"
+            
+            lines = result.split('\n')
+            for line in lines:
+                line = line.strip()
+                
+                if 'RX bytes:' in line:
+                    import re
+                    match = re.search(r'RX bytes:\d+\s+\(([^)]+)\)', line)
+                    if match:
+                        rx_bytes = match.group(1).strip()
+                
+                if 'TX bytes:' in line:
+                    import re
+                    match = re.search(r'TX bytes:\d+\s+\(([^)]+)\)', line)
+                    if match:
+                        tx_bytes = match.group(1).strip()
+            
+            return {
+                "rx": rx_bytes,
+                "tx": tx_bytes
+            }
+        except Exception as e:
+            print(f"Error getting interface traffic for {interface_name}: {e}")
+            return None
+
+    def get_all_servers_traffic(self):
+        """Get interface traffic for all servers"""
+        servers_traffic = {}
+        for server in self.config['servers']:
+            interface = server.get('interface')
+            if interface:
+                traffic = self.get_server_interface_traffic(interface)
+                if traffic:
+                    servers_traffic[server['id']] = traffic
+        return servers_traffic
+
+    def start_traffic_updates(self):
+        """Start traffic updates using SocketIO background task"""
+        def update_traffic():
+            while True:
+                try:
+                    # Get client traffic
+                    all_client_traffic = {}
+                    for server in self.config['servers']:
+                        server_id = server['id']
+                        traffic = self.get_peer_traffic_for_server(server_id)
+                        if traffic:
+                            all_client_traffic[server_id] = traffic
+                    
+                    # Get server interface traffic
+                    server_interface_traffic = self.get_all_servers_traffic()
+                    
+                    # Send combined data in clean format
+                    if all_client_traffic or server_interface_traffic:
+                        socketio.emit('traffic_update', {
+                            'timestamp': time.time(),
+                            'client_traffic': all_client_traffic,
+                            'server_traffic': server_interface_traffic
+                        })
+                    
+                except Exception as e:
+                    print(f"Traffic update error: {e}")
+                
+                socketio.sleep(self.traffic_update_interval)
+        
+        socketio.start_background_task(update_traffic)
 
 amnezia_manager = AmneziaManager()
 
@@ -1509,9 +1560,15 @@ def update_client_suspend_time(server_id, client_id):
     
 @app.route('/api/servers/<server_id>/traffic')
 def get_server_traffic(server_id):
-    traffic = amnezia_manager.get_traffic_for_server(server_id)
+    traffic = amnezia_manager.get_peer_traffic_for_server(server_id)
     if traffic is None:
         return jsonify({"error": "Server not found or no traffic data"}), 404
+    return jsonify(traffic)
+
+@app.route('/api/servers/traffic')
+def get_all_servers_traffic():
+    """Get interface traffic for all servers"""
+    traffic = amnezia_manager.get_all_servers_traffic()
     return jsonify(traffic)
 
 @app.route('/status')
@@ -1534,7 +1591,6 @@ def get_container_uptime():
 def handle_connect():
     print(f"WebSocket connected from {request.remote_addr}")
     
-    # Include the port in the status message
     socketio.emit('status', {
         'message': 'Connected to AmneziaWG Web UI',
         'public_ip': amnezia_manager.public_ip,
@@ -1543,17 +1599,20 @@ def handle_connect():
         'client_port': request.environ.get('HTTP_X_FORWARDED_PORT', 'unknown')
     })
     
-    all_traffic = {}
+    all_client_traffic = {}
     for server in amnezia_manager.config['servers']:
         server_id = server['id']
-        traffic = amnezia_manager.get_traffic_for_server(server_id)
+        traffic = amnezia_manager.get_peer_traffic_for_server(server_id)
         if traffic:
-            all_traffic[server_id] = traffic
+            all_client_traffic[server_id] = traffic
     
-    if all_traffic:
+    server_interface_traffic = amnezia_manager.get_all_servers_traffic()
+    
+    if all_client_traffic or server_interface_traffic:
         socketio.emit('traffic_update', {
             'timestamp': time.time(),
-            'traffic': all_traffic
+            'client_traffic': all_client_traffic,
+            'server_traffic': server_interface_traffic
         })
 
 @socketio.on('disconnect')

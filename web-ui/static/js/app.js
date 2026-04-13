@@ -142,20 +142,32 @@ class AmneziaApp {
     }
 
     updateTrafficDisplay(trafficData) {
-        // For each server in traffic data
-        for (const serverId in trafficData) {
-            if (trafficData.hasOwnProperty(serverId)) {
-                const clientsContainer = this.getElement(`clients-${serverId}`);
-                if (clientsContainer) {
-                    const serverTraffic = trafficData[serverId];
-                    
-                    // Update each client's traffic
-                    for (const clientId in serverTraffic) {
-                        if (serverTraffic.hasOwnProperty(clientId)) {
-                            const clientTraffic = serverTraffic[clientId];
-                            this.updateClientTrafficElement(clientId, clientTraffic, clientsContainer);
+        if (!trafficData) return;
+        
+        // Handle client traffic
+        if (trafficData.client_traffic) {
+            for (const serverId in trafficData.client_traffic) {
+                if (trafficData.client_traffic.hasOwnProperty(serverId)) {
+                    const clientsContainer = this.getElement(`clients-${serverId}`);
+                    if (clientsContainer) {
+                        const serverTraffic = trafficData.client_traffic[serverId];
+                        
+                        for (const clientId in serverTraffic) {
+                            if (serverTraffic.hasOwnProperty(clientId)) {
+                                const clientTrafficData = serverTraffic[clientId];
+                                this.updateClientTrafficElement(clientId, clientTrafficData, clientsContainer);
+                            }
                         }
                     }
+                }
+            }
+        }
+        
+        // Handle server interface traffic
+        if (trafficData.server_traffic) {
+            for (const serverId in trafficData.server_traffic) {
+                if (trafficData.server_traffic.hasOwnProperty(serverId)) {
+                    this.updateServerTrafficElement(serverId, trafficData.server_traffic[serverId]);
                 }
             }
         }
@@ -192,6 +204,42 @@ class AmneziaApp {
                 }
             }
         }
+    }
+
+    updateServerTrafficElement(serverId, trafficData) {
+        const serverCard = document.querySelector(`[data-server-id="${serverId}"]`);
+        if (serverCard && trafficData) {
+            let trafficElement = serverCard.querySelector('.server-interface-traffic');
+            if (!trafficElement) {
+                const serverHeader = serverCard.querySelector('.flex.justify-between.items-center.mb-4 > div');
+                if (serverHeader) {
+                    const trafficDiv = document.createElement('div');
+                    trafficDiv.className = 'server-interface-traffic text-xs text-gray-500 mt-1';
+                    serverHeader.appendChild(trafficDiv);
+                    trafficElement = trafficDiv;
+                }
+            }
+            
+            if (trafficElement) {
+                trafficElement.innerHTML = `📡 Interface: 🔽 ${trafficData.rx} &nbsp; 🔼 ${trafficData.tx}`;
+                trafficElement.title = `Interface RX: ${trafficData.rx}, TX: ${trafficData.tx}`;
+            }
+        }
+    }
+
+    loadAllServerTraffic() {
+        fetch('/api/servers/traffic')
+            .then(response => response.json())
+            .then(trafficData => {
+                for (const serverId in trafficData) {
+                    if (trafficData.hasOwnProperty(serverId)) {
+                        this.updateServerTrafficElement(serverId, trafficData[serverId]);
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('Error loading server traffic:', error);
+            });
     }
 
     setupSocketIO() {
@@ -247,7 +295,7 @@ class AmneziaApp {
 
         this.socket.on('traffic_update', (data) => {
             if (this.socket.connected) {
-                this.updateTrafficDisplay(data.traffic);
+                this.updateTrafficDisplay(data);
             }
         });
     }
@@ -649,7 +697,7 @@ class AmneziaApp {
         }
 
         serversList.innerHTML = servers.map(server => `
-            <div class="bg-white rounded-lg shadow-md p-6">
+            <div class="bg-white rounded-lg shadow-md p-6" data-server-id="${server.id}">
                 <div class="flex justify-between items-center mb-4">
                     <div>
                         <h3 class="text-lg font-semibold">${server.name}</h3>
@@ -657,7 +705,9 @@ class AmneziaApp {
                             ID: ${server.id} | Port: ${server.port} | Subnet: ${server.subnet}
                             ${server.obfuscation_enabled ? '| 🔒 Obfuscated' : ''}
                         </p>
-                        <p class="text-sm text-gray-500">Public IP: ${server.public_ip}</p>
+                        <div class="server-interface-traffic text-xs text-gray-500 mt-1">
+                            📡 Loading interface traffic...
+                        </div>
                     </div>
                     <div class="flex items-center space-x-2">
                         <span class="px-3 py-1 rounded-full text-sm ${
@@ -692,6 +742,9 @@ class AmneziaApp {
         servers.forEach(server => {
             this.loadServerClients(server.id);
         });
+        
+        // Load initial server interface traffic
+        this.loadAllServerTraffic();
     }
 
     renderServerClients(serverId, clients, traffic = {}) {

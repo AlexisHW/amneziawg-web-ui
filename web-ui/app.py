@@ -1587,6 +1587,96 @@ def get_container_uptime():
     
     return f"Container Uptime: {days}d {hours}h {minutes}m {seconds}s"
 
+@app.route('/api/logs/list')
+def get_logs_list():
+    """Get list of available log files"""
+    log_files = [
+        {"name": "Nginx Access", "path": "/var/log/nginx/access.log", "type": "access"},
+        {"name": "Nginx Error", "path": "/var/log/nginx/error.log", "type": "error"},
+        {"name": "Supervisor", "path": "/var/log/supervisor/supervisord.log", "type": "info"},
+        {"name": "WebUI Access", "path": "/var/log/webui/access.log", "type": "access"},
+        {"name": "WebUI Error", "path": "/var/log/webui/error.log", "type": "error"}
+    ]
+    
+    # Check which files exist
+    available_logs = []
+    for log in log_files:
+        if os.path.exists(log["path"]):
+            stat = os.stat(log["path"])
+            available_logs.append({
+                "name": log["name"],
+                "path": log["path"],
+                "type": log["type"],
+                "size": stat.st_size,
+                "size_human": format_bytes(stat.st_size)
+            })
+    
+    return jsonify(available_logs)
+
+@app.route('/api/logs/view')
+def view_log():
+    """Get last N lines of a log file"""
+    log_path = request.args.get('path')
+    lines = request.args.get('lines', 100, type=int)
+    
+    if not log_path:
+        return jsonify({"error": "Log path required"}), 400
+    
+    if not os.path.exists(log_path):
+        return jsonify({"error": "Log file not found"}), 404
+    
+    try:
+        # Use tail command to get last N lines
+        result = subprocess.run(
+            ["tail", "-n", str(lines), log_path],
+            capture_output=True,
+            text=True,
+            check=True
+        )
+        
+        return jsonify({
+            "path": log_path,
+            "lines": result.stdout,
+            "line_count": len(result.stdout.splitlines()),
+            "total_lines": int(subprocess.run(
+                ["wc", "-l", log_path],
+                capture_output=True,
+                text=True,
+                check=True
+            ).stdout.split()[0])
+        })
+    except subprocess.CalledProcessError as e:
+        return jsonify({"error": f"Failed to read log: {str(e)}"}), 500
+
+@app.route('/api/logs/download')
+def download_log():
+    """Download complete log file"""
+    log_path = request.args.get('path')
+    
+    if not log_path:
+        return jsonify({"error": "Log path required"}), 400
+    
+    if not os.path.exists(log_path):
+        return jsonify({"error": "Log file not found"}), 404
+    
+    # Get filename from path
+    filename = os.path.basename(log_path)
+    
+    return send_file(
+        log_path,
+        as_attachment=True,
+        download_name=f"{filename}",
+        mimetype="text/plain"
+    )
+
+def format_bytes(bytes_value):
+    """Format bytes to human readable format"""
+    for unit in ['B', 'KB', 'MB', 'GB']:
+        if bytes_value < 1024.0:
+            return f"{bytes_value:.1f} {unit}"
+        bytes_value /= 1024.0
+    return f"{bytes_value:.1f} TB"
+
 @socketio.on('connect')
 def handle_connect():
     print(f"WebSocket connected from {request.remote_addr}")

@@ -90,3 +90,31 @@ input:focus, button:focus {
 .config-preview::-webkit-scrollbar-thumb:hover {
     background: #6B7280;
 }
+
+/* Logs view section */
+.log-lines {
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+.log-lines::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+.log-lines::-webkit-scrollbar-track {
+    background: #2d3748;
+    border-radius: 4px;
+}
+
+.log-lines::-webkit-scrollbar-thumb {
+    background: #4a5568;
+    border-radius: 4px;
+}
+
+.log-lines::-webkit-scrollbar-thumb:hover {
+    background: #718096;
+}

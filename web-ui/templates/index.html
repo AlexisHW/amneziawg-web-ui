@@ -177,6 +177,25 @@
             </div>
         </div>
 
+        <!-- Logs Section -->
+        <div class="mt-8 bg-white rounded-lg shadow-md">
+            <div class="flex justify-between items-center p-4 cursor-pointer hover:bg-gray-50"
+                 onclick="amneziaApp.toggleLogsSection()">
+                <h2 class="text-xl font-bold text-gray-800">📋 System Logs</h2>
+                <button class="text-gray-600 hover:text-gray-800">
+                    <span id="logsToggleIcon">▼</span>
+                </button>
+            </div>
+            <div id="logsContainer" class="hidden p-4 border-t border-gray-200">
+                <div id="logTabs" class="mb-4">
+                    <!-- Tabs will be loaded here -->
+                </div>
+                <div id="logContent" class="mt-4">
+                    <!-- Log content will be displayed here -->
+                </div>
+            </div>
+        </div>
+
         <!-- Copyright Footer -->
         <div class="mt-8 text-center text-gray-400 text-sm">
             <a href="https://github.com/AlexisHW/amneziawg-web-ui/" target="_blank" rel="noopener noreferrer" class="hover:text-gray-600 transition duration-200">

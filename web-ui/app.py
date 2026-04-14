@@ -1671,14 +1671,11 @@ def view_log():
 @app.route('/api/logs/download')
 def download_log():
     """Download complete log file"""
-    requested_path = request.args.get('path')
     requested_type = request.args.get('type')
 
     log_path = None
     if requested_type and requested_type in ALLOWED_LOG_TYPES:
         log_path = ALLOWED_LOG_TYPES[requested_type]
-    elif requested_path and requested_path in ALLOWED_LOG_PATHS:
-        log_path = requested_path
 
     safe_log_path = resolve_allowed_log_path(log_path)
     if not safe_log_path:

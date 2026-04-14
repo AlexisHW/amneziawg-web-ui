@@ -18,6 +18,17 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 TEMPLATE_DIR = os.path.join(BASE_DIR, 'templates')
 STATIC_DIR = os.path.join(BASE_DIR, 'static')
 
+# Allowlisted log files for log endpoints
+ALLOWED_LOG_FILES = [
+    {"name": "Nginx Access", "path": "/var/log/nginx/access.log", "type": "access"},
+    {"name": "Nginx Error", "path": "/var/log/nginx/error.log", "type": "error"},
+    {"name": "Supervisor", "path": "/var/log/supervisor/supervisord.log", "type": "info"},
+    {"name": "WebUI Access", "path": "/var/log/webui/access.log", "type": "access"},
+    {"name": "WebUI Error", "path": "/var/log/webui/error.log", "type": "error"}
+]
+ALLOWED_LOG_PATHS = {log["path"] for log in ALLOWED_LOG_FILES}
+ALLOWED_LOG_TYPES = {log["type"]: log["path"] for log in ALLOWED_LOG_FILES}
+
 # Essential environment variables
 NGINX_PORT = os.getenv('NGINX_PORT', '80')
 AUTO_START_SERVERS = os.getenv('AUTO_START_SERVERS', 'true').lower() == 'true'
@@ -1590,17 +1601,9 @@ def get_container_uptime():
 @app.route('/api/logs/list')
 def get_logs_list():
     """Get list of available log files"""
-    log_files = [
-        {"name": "Nginx Access", "path": "/var/log/nginx/access.log", "type": "access"},
-        {"name": "Nginx Error", "path": "/var/log/nginx/error.log", "type": "error"},
-        {"name": "Supervisor", "path": "/var/log/supervisor/supervisord.log", "type": "info"},
-        {"name": "WebUI Access", "path": "/var/log/webui/access.log", "type": "access"},
-        {"name": "WebUI Error", "path": "/var/log/webui/error.log", "type": "error"}
-    ]
-    
     # Check which files exist
     available_logs = []
-    for log in log_files:
+    for log in ALLOWED_LOG_FILES:
         if os.path.exists(log["path"]):
             stat = os.stat(log["path"])
             available_logs.append({
@@ -1616,11 +1619,18 @@ def get_logs_list():
 @app.route('/api/logs/view')
 def view_log():
     """Get last N lines of a log file"""
-    log_path = request.args.get('path')
+    requested_path = request.args.get('path')
+    requested_type = request.args.get('type')
     lines = request.args.get('lines', 100, type=int)
-    
+
+    log_path = None
+    if requested_type and requested_type in ALLOWED_LOG_TYPES:
+        log_path = ALLOWED_LOG_TYPES[requested_type]
+    elif requested_path and requested_path in ALLOWED_LOG_PATHS:
+        log_path = requested_path
+
     if not log_path:
-        return jsonify({"error": "Log path required"}), 400
+        return jsonify({"error": "Invalid log selection"}), 400
     
     if not os.path.exists(log_path):
         return jsonify({"error": "Log file not found"}), 404

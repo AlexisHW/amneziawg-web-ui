@@ -1661,10 +1661,17 @@ def view_log():
 @app.route('/api/logs/download')
 def download_log():
     """Download complete log file"""
-    log_path = request.args.get('path')
-    
+    requested_path = request.args.get('path')
+    requested_type = request.args.get('type')
+
+    log_path = None
+    if requested_type and requested_type in ALLOWED_LOG_TYPES:
+        log_path = ALLOWED_LOG_TYPES[requested_type]
+    elif requested_path and requested_path in ALLOWED_LOG_PATHS:
+        log_path = requested_path
+
     if not log_path:
-        return jsonify({"error": "Log path required"}), 400
+        return jsonify({"error": "Invalid log selection"}), 400
     
     if not os.path.exists(log_path):
         return jsonify({"error": "Log file not found"}), 404

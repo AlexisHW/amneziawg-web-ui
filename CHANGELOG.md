@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## Version 1.8.2
+### New Features
+- Display server RX/TX traffic from server interface (ifconfig). It can slightly differ from the traffic amount provided by awg which shows peer traffic. Auto-updated every 5 secs via Websocket.
+- UI improved: nginx and server logs are now shown in UI. Last 100 lines of every log is shown. Use `Reload` button re-read the log from server.
+
 ## Version 1.8.1
 ### Fix
 - Fix client keys generation

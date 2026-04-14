@@ -28,6 +28,16 @@ ALLOWED_LOG_FILES = [
 ]
 ALLOWED_LOG_PATHS = {log["path"] for log in ALLOWED_LOG_FILES}
 ALLOWED_LOG_TYPES = {log["type"]: log["path"] for log in ALLOWED_LOG_FILES}
+ALLOWED_LOG_REALPATHS = {os.path.realpath(path) for path in ALLOWED_LOG_PATHS}
+
+def resolve_allowed_log_path(path_value):
+    """Resolve and validate that a path is one of the explicitly allowlisted log files."""
+    if not path_value:
+        return None
+    resolved_path = os.path.realpath(path_value)
+    if resolved_path not in ALLOWED_LOG_REALPATHS:
+        return None
+    return resolved_path
 
 # Essential environment variables
 NGINX_PORT = os.getenv('NGINX_PORT', '80')
@@ -1670,17 +1680,18 @@ def download_log():
     elif requested_path and requested_path in ALLOWED_LOG_PATHS:
         log_path = requested_path
 
-    if not log_path:
+    safe_log_path = resolve_allowed_log_path(log_path)
+    if not safe_log_path:
         return jsonify({"error": "Invalid log selection"}), 400
     
-    if not os.path.exists(log_path):
+    if not os.path.exists(safe_log_path):
         return jsonify({"error": "Log file not found"}), 404
     
     # Get filename from path
-    filename = os.path.basename(log_path)
+    filename = os.path.basename(safe_log_path)
     
     return send_file(
-        log_path,
+        safe_log_path,
         as_attachment=True,
         download_name=f"{filename}",
         mimetype="text/plain"

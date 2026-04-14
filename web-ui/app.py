@@ -1689,9 +1689,11 @@ def download_log():
     
     # Get filename from path
     filename = os.path.basename(safe_log_path)
+    safe_log_dir = os.path.dirname(safe_log_path)
     
-    return send_file(
-        safe_log_path,
+    return send_from_directory(
+        directory=safe_log_dir,
+        path=filename,
         as_attachment=True,
         download_name=f"{filename}",
         mimetype="text/plain"

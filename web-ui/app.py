@@ -263,6 +263,13 @@ class AmneziaManager:
         port = server_data.get('port', DEFAULT_PORT)
         subnet = server_data.get('subnet', DEFAULT_SUBNET)
         mtu = server_data.get('mtu', DEFAULT_MTU)
+        
+        # Get custom endpoint if provided, otherwise use public IP
+        custom_endpoint = server_data.get('endpoint', '').strip()
+        if custom_endpoint:
+            endpoint = custom_endpoint
+        else:
+            endpoint = self.public_ip
 
         # Get DNS servers from request or use environment default
         custom_dns = server_data.get('dns')
@@ -353,7 +360,8 @@ H4 = {obfuscation_params['H4']}
             "subnet": subnet,
             "server_ip": server_ip,
             "mtu": mtu,
-            "public_ip": self.public_ip,
+            "public_ip": endpoint,  # Store the endpoint (could be IP or hostname)
+            "endpoint": endpoint,    # Store explicitly as endpoint for clarity
             "obfuscation_enabled": enable_obfuscation,
             "awg2_enabled": awg2_enabled,
             "obfuscation_params": obfuscation_params,
@@ -377,7 +385,7 @@ H4 = {obfuscation_params['H4']}
             self.start_server(server_id)
 
         return server_config
-    
+
     def apply_live_config(self, interface):
         """Apply the latest config to the running WireGuard interface using wg syncconf."""
         try:
@@ -618,13 +626,15 @@ AllowedIPs = {server_peer_allowed_ips}
         """Generate WireGuard client configuration with optional I-settings and custom AllowedIPs"""
         config = ""
         
+        endpoint = server.get('endpoint', server.get('public_ip', self.public_ip))
+        
         # Add comments only if requested
         if include_comments:
             config = f"""# AmneziaWG Client Configuration
 # Server: {server['name']}
 # Client: {client_config['name']}
 # Generated: {time.ctime(client_config['created_at'])}
-# Server IP: {server['public_ip']}:{server['port']}
+# Server Endpoint: {endpoint}:{server['port']}
 """
 
         config += f"""[Interface]
@@ -671,7 +681,7 @@ H4 = {params['H4']}
 [Peer]
 PublicKey = {server['server_public_key']}
 PresharedKey = {client_config['preshared_key']}
-Endpoint = {server['public_ip']}:{server['port']}
+Endpoint = {endpoint}:{server['port']}
 AllowedIPs = {allowed_ips}
 PersistentKeepalive = 25
 """

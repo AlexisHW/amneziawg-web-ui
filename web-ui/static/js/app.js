@@ -551,6 +551,7 @@ class AmneziaApp {
         const obfuscationElement = this.getElement('enableObfuscation');
         const awg2Element = this.getElement('enableAwg2');
         const autoStartElement = this.getElement('autoStart');
+        const endpointElement = this.getElement('serverEndpoint');
 
         const formData = {
             name: nameElement ? nameElement.value.trim() : 'New Server',
@@ -560,7 +561,8 @@ class AmneziaApp {
             dns: dnsElement ? dnsElement.value.trim() : '8.8.8.8,1.1.1.1',
             obfuscation: obfuscationElement ? obfuscationElement.checked : true,
             awg2: awg2Element ? awg2Element.checked : true,
-            auto_start: autoStartElement ? autoStartElement.checked : true
+            auto_start: autoStartElement ? autoStartElement.checked : true,
+            endpoint: endpointElement ? endpointElement.value.trim() : ''
         };
 
         console.log("Form data:", formData);

@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## Version 1.8.3
+### Improvements
+- Show suspend date near client name on the main page. If no suspend date set - nothing is displayed.
+### New Features
+- Allow to set and edit AllowedIPs for a client
+- Allow to set server endpoint to a DNS name or custom IP at server creation
+
 ## Version 1.8.2
 ### New Features
 - Display server RX/TX traffic from server interface (ifconfig). It can slightly differ from the traffic amount provided by awg which shows peer traffic. Auto-updated every 5 secs via Websocket.

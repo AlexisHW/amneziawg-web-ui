@@ -76,13 +76,26 @@
                     </div>
 
                     <div class="grid grid-cols-1 gap-4">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700">DNS Servers *</label>
-                            <input type="text" id="serverDNS" value="8.8.8.8,1.1.1.1"
-                                class="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
-                                placeholder="8.8.8.8,1.1.1.1" required>
-                            <p id="dnsError" class="text-red-500 text-xs mt-1 hidden">Valid DNS servers required (comma-separated IPs)</p>
-                            <p class="text-gray-500 text-xs mt-1">Comma-separated DNS server IPs (e.g., 8.8.8.8,1.1.1.1)</p>
+                        <!-- DNS and Endpoint on the same row - Flexbox solution -->
+                        <div class="flex flex-col md:flex-row gap-4">
+                            <div class="flex-1">
+                                <label class="block text-sm font-medium text-gray-700">DNS Servers *</label>
+                                <input type="text" id="serverDNS" value="8.8.8.8,1.1.1.1"
+                                    class="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
+                                    placeholder="8.8.8.8,1.1.1.1" required>
+                                <p id="dnsError" class="text-red-500 text-xs mt-1 hidden">Valid DNS servers required (comma-separated IPs)</p>
+                                <p class="text-gray-500 text-xs mt-1">Comma-separated DNS server IPs (e.g., 8.8.8.8,1.1.1.1)</p>
+                            </div>
+                            
+                            <div class="flex-1">
+                                <label class="block text-sm font-medium text-gray-700">Server Endpoint</label>
+                                <input type="text" id="serverEndpoint"
+                                    placeholder="Leave empty to use auto-detected public IP"
+                                    class="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2">
+                                <div class="flex justify-between items-center mt-1">
+                                    <p class="text-gray-500 text-xs">Custom endpoint (IP or hostname)</p>
+                                </div>
+                            </div>
                         </div>
                     </div>
 

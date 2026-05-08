@@ -452,8 +452,8 @@ H4 = {obfuscation_params['H4']}
         self.save_config()
         return True
 
-    def add_wireguard_client(self, server_id, client_name, apply_i_settings=False, i_settings=None):
-        """Add a client to a WireGuard server with optional I-settings"""
+    def add_wireguard_client(self, server_id, client_name, apply_i_settings=False, i_settings=None, allowed_ips=None):
+        """Add a client to a WireGuard server with optional I-settings and custom AllowedIPs"""
         server = next((s for s in self.config['servers'] if s['id'] == server_id), None)
         if not server:
             return None
@@ -468,6 +468,13 @@ H4 = {obfuscation_params['H4']}
         client_ip = self.get_new_client_ip(server_id)
         if not client_ip:
             return None
+
+        # Set AllowedIPs only for client config
+        server_peer_allowed_ips = f"{client_ip}/32"
+        if allowed_ips is None or not allowed_ips.strip():
+            client_allowed_ips = "0.0.0.0/0, ::/0"
+        else:
+            client_allowed_ips = allowed_ips.strip()
 
         # Process I-settings
         client_i_settings = {}
@@ -503,16 +510,17 @@ H4 = {obfuscation_params['H4']}
             "obfuscation_params": server["obfuscation_params"],
             "apply_i_settings": apply_i_settings,
             "i_settings": client_i_settings,
-            "awg2_enabled": server.get("awg2_enabled", False)
+            "awg2_enabled": server.get("awg2_enabled", False),
+            "allowed_ips": client_allowed_ips  # Store client-side AllowedIPs
         }
 
-        # Add client to server config
+        # Add client to server config (server-side peer config uses only client IP)
         client_peer_config = f"""
 # Client: {client_config['name']}
 [Peer]
 PublicKey = {client_keys['public_key']}
 PresharedKey = {preshared_key}
-AllowedIPs = {client_ip}/32
+AllowedIPs = {server_peer_allowed_ips}
 """
 
         # Append client to server config file
@@ -531,7 +539,7 @@ AllowedIPs = {client_ip}/32
         if server['status'] == 'running':
             self.apply_live_config(server['interface'])
             
-        print(f"Client {client_config['name']} added")
+        print(f"Client {client_config['name']} added with AllowedIPs: {client_allowed_ips}")
 
         config_content = self.generate_wireguard_client_config(server, client_config, include_comments=True)
         return client_config, config_content
@@ -607,7 +615,7 @@ AllowedIPs = {client_ip}/32
             f.writelines(new_lines)
 
     def generate_wireguard_client_config(self, server, client_config, include_comments=True):
-        """Generate WireGuard client configuration with optional I-settings"""
+        """Generate WireGuard client configuration with optional I-settings and custom AllowedIPs"""
         config = ""
         
         # Add comments only if requested
@@ -656,16 +664,46 @@ H4 = {params['H4']}
                     if i_value:  # Only add non-empty values
                         config += f"I{i} = {i_value}\n"
         
+        # Use custom AllowedIPs if set, otherwise default to all traffic
+        allowed_ips = client_config.get('allowed_ips', '0.0.0.0/0, ::/0')
+        
         config += f"""
 [Peer]
 PublicKey = {server['server_public_key']}
 PresharedKey = {client_config['preshared_key']}
 Endpoint = {server['public_ip']}:{server['port']}
-AllowedIPs = 0.0.0.0/0, ::/0
+AllowedIPs = {allowed_ips}
 PersistentKeepalive = 25
 """
         return config
-    
+
+    def update_client_allowed_ips(self, server_id, client_id, allowed_ips):
+        """Update client AllowedIPs setting"""
+        server = next((s for s in self.config['servers'] if s['id'] == server_id), None)
+        if not server:
+            return None, "Server not found"
+
+        client = next((c for c in server["clients"] if c["id"] == client_id), None)
+        if not client:
+            return None, "Client not found"
+        
+        # Update allowed_ips
+        if allowed_ips and allowed_ips.strip():
+            client['allowed_ips'] = allowed_ips.strip()
+        else:
+            client['allowed_ips'] = '0.0.0.0/0, ::/0'
+        
+        # Update global clients dict
+        if client_id in self.config["clients"]:
+            self.config["clients"][client_id]['allowed_ips'] = client['allowed_ips']
+        
+        self.save_config()
+        
+        # Regenerate config
+        config_content = self.generate_wireguard_client_config(server, client, include_comments=True)
+        
+        return client, config_content
+
     def update_client_i_settings(self, server_id, client_id, apply_i_settings=None, i_settings=None):
         """Update client I-settings"""
         server = next((s for s in self.config['servers'] if s['id'] == server_id), None)
@@ -1254,8 +1292,9 @@ def add_client(server_id):
     client_name = data.get('name', 'New Client')
     apply_i_settings = data.get('apply_i_settings', False)
     i_settings = data.get('i_settings', {})
+    allowed_ips = data.get('allowed_ips', '0.0.0.0/0, ::/0')
 
-    result = amnezia_manager.add_wireguard_client(server_id, client_name, apply_i_settings, i_settings)
+    result = amnezia_manager.add_wireguard_client(server_id, client_name, apply_i_settings, i_settings, allowed_ips)
     if result:
         client_config, config_content = result
         return jsonify({
@@ -1268,6 +1307,20 @@ def add_client(server_id):
 def delete_client(server_id, client_id):
     if amnezia_manager.delete_client(server_id, client_id):
         return jsonify({"status": "deleted", "client_id": client_id})
+    return jsonify({"error": "Client not found"}), 404
+
+@app.route('/api/servers/<server_id>/clients/<client_id>/allowed-ips', methods=['PUT'])
+def update_client_allowed_ips(server_id, client_id):
+    data = request.json
+    allowed_ips = data.get('allowed_ips', '0.0.0.0/0, ::/0')
+    
+    client, config_content = amnezia_manager.update_client_allowed_ips(server_id, client_id, allowed_ips)
+    
+    if client:
+        return jsonify({
+            "client": client,
+            "config": config_content
+        })
     return jsonify({"error": "Client not found"}), 404
 
 @app.route('/api/servers/<server_id>/clients/<client_id>/i-settings', methods=['PUT'])

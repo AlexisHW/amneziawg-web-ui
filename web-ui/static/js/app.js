@@ -776,6 +776,13 @@ class AmneziaApp {
                         ? '<span class="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full ml-2">Suspended</span>'
                         : '<span class="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full ml-2">Active</span>';
                     
+                    // Format suspend date if it exists
+                    let suspendDateHtml = '';
+                    if (client.suspend_at) {
+                        const suspendDate = new Date(client.suspend_at * 1000);
+                        suspendDateHtml = `<span class="text-xs bg-red-100 text-red-800 px-2 py-1 rounded-full ml-2" title="Auto-suspend scheduled">⏰ ${suspendDate.toLocaleDateString()} ${suspendDate.toLocaleTimeString()}</span>`;
+                    }
+                    
                     return `
                     <div class="flex justify-between items-center bg-gray-50 p-3 rounded-lg hover:bg-gray-100 transition-colors duration-200 client-item"
                         data-client-id="${client.id}">
@@ -790,8 +797,9 @@ class AmneziaApp {
                                 <div class="flex items-center space-x-2">
                                     <span class="font-medium">${client.name}</span>
                                     <span class="text-sm text-gray-600 ml-2">${client.client_ip}</span>
-                                    ${hasISettings ? '<span class="text-xs bg-purple-100 text-purple-800 px-2 py-1 rounded-full ml-2">I-settings</span>' : ''}
+                                    ${hasISettings ? '<span class="text-xs bg-purple-100 text-purple-800 px-2 py-1 rounded-full ml-2">I1-5</span>' : ''}
                                     ${statusBadge}
+                                    ${suspendDateHtml}
                                 </div>
                                 <div class="flex items-center space-x-4 mt-1">
                                     <span class="text-xs text-gray-500 client-traffic">
@@ -809,6 +817,7 @@ class AmneziaApp {
                             </div>
                         </div>
                         <div class="flex space-x-2">
+                            <!-- buttons remain the same -->
                             <button onclick="amneziaApp.editClient('${serverId}', '${client.id}')"
                                     class="bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 shadow hover:shadow-md flex items-center"
                                     title="Edit Client">
@@ -954,6 +963,9 @@ class AmneziaApp {
     showClientModalWithDefaults(serverId, modalTitle, clientName, applyISettings, iSettings, defaultISettings, client) {
         // Determine if this is edit mode
         const isEditMode = !!client;
+
+        // Get current allowed_ips value
+        const allowedIpsValue = client && client.allowed_ips ? client.allowed_ips : '0.0.0.0/0, ::/0';
         
         // Format created_at if it exists
         let created_at_html = '';
@@ -1018,6 +1030,21 @@ class AmneziaApp {
                                     class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 ${isEditMode ? 'bg-gray-100 cursor-not-allowed' : ''}"
                                     ${isEditMode ? 'readonly' : ''}
                                     required>
+                            </div>
+
+                            <!-- AllowedIPs Field -->
+                            <div>
+                                <label for="allowedIps" class="block text-sm font-medium text-gray-700 mb-2">
+                                    Allowed IPs (Client-side routing)
+                                </label>
+                                <input type="text" id="allowedIps" value="${allowedIpsValue.replace(/"/g, '&quot;')}"
+                                    class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                                    placeholder="0.0.0.0/0, ::/0">
+                                <p class="text-xs text-gray-500 mt-1">
+                                    Comma-separated list of IP ranges to route through the VPN.<br>
+                                    Default: 0.0.0.0/0, ::/0 (all traffic)<br>
+                                    Example: 10.0.0.0/24, 192.168.1.0/24
+                                </p>
                             </div>
                             
                             <!-- Scheduled Suspension Section (only for edit mode) -->
@@ -1166,6 +1193,7 @@ class AmneziaApp {
         const clientId = document.getElementById('clientId').value;
         const clientName = document.getElementById('clientName').value.trim();
         const applyISettings = document.getElementById('applyISettings').checked;
+        const allowedIps = document.getElementById('allowedIps').value.trim();
         
         if (!clientName) {
             this.showTempMessage('Client name is required', 'error');
@@ -1174,7 +1202,8 @@ class AmneziaApp {
 
         const data = {
             name: clientName,
-            apply_i_settings: applyISettings
+            apply_i_settings: applyISettings,
+            allowed_ips: allowedIps || '0.0.0.0/0, ::/0'
         };
 
         // Collect I-settings if checkbox is checked
@@ -1196,25 +1225,45 @@ class AmneziaApp {
         
         let url, method;
         
+        // Update existing client
         if (clientId) {
-            // Update existing client - use the i-settings endpoint first
-            url = `/api/servers/${serverId}/clients/${clientId}/i-settings`;
-            method = 'PUT';
-
-            // Save client I-settings first
-            fetch(url, {
-                method: method,
+            const allowedIpsData = {
+                allowed_ips: allowedIps || '0.0.0.0/0, ::/0'
+            };
+            
+            fetch(`/api/servers/${serverId}/clients/${clientId}/allowed-ips`, {
+                method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify(data)
+                body: JSON.stringify(allowedIpsData)
             })
-            .then(response => response.json())
-            .then(result => {
-                if (result.error) {
-                    throw new Error(result.error);
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Failed to update AllowedIPs');
                 }
-
+                return response.json();
+            })
+            .then(() => {
+                // Then update I-settings
+                return fetch(`/api/servers/${serverId}/clients/${clientId}/i-settings`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        apply_i_settings: applyISettings,
+                        i_settings: data.i_settings || {}
+                    })
+                });
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Failed to update I-settings');
+                }
+                return response.json();
+            })
+            .then(() => {
                 // Then save suspension time if set
                 const suspendAtInput = document.getElementById('suspendAt');
                 if (suspendAtInput) {
@@ -1239,10 +1288,7 @@ class AmneziaApp {
                 }
                 return null;
             })
-            .then(suspensionResult => {
-                if (suspensionResult && !suspensionResult.ok) {
-                    console.warn('Failed to set suspension time');
-                }
+            .then(() => {
                 this.showTempMessage('Client updated successfully!', 'success');
                 this.closeClientModal();
                 this.loadServers();
@@ -1280,7 +1326,7 @@ class AmneziaApp {
     }
 
     addClient(serverId) {
-        this.showClientModal(serverId);
+        this.showClientModal(serverId, null);
     }
 
     editClient(serverId, clientId) {

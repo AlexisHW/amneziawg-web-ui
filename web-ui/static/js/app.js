@@ -819,7 +819,6 @@ class AmneziaApp {
                             </div>
                         </div>
                         <div class="flex space-x-2">
-                            <!-- buttons remain the same -->
                             <button onclick="amneziaApp.editClient('${serverId}', '${client.id}')"
                                     class="bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 shadow hover:shadow-md flex items-center"
                                     title="Edit Client">

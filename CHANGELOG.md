@@ -1,6 +1,6 @@
 # CHANGELOG
 
-## Version 1.8.3
+## Version 1.8.4
 ### Improvements
 - QR code picture is saved with both client and server names in the file name (#71)
 ### New Features

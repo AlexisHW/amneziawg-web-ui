@@ -44,6 +44,7 @@ EXPOSE 80
 EXPOSE 51820/udp
 
 ENV NGINX_PORT=80
+ENV APP_VERSION=1.8.4
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \

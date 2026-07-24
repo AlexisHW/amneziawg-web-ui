@@ -118,3 +118,327 @@ input:focus, button:focus {
 .log-lines::-webkit-scrollbar-thumb:hover {
     background: #718096;
 }
+
+/* ======================================== */
+/* DARK THEME SUPPORT - ADDED BELOW */
+/* ======================================== */
+
+/* Dark Theme Variables */
+:root {
+    /* Keep original light mode variables */
+    --bg-primary: #f3f4f6;
+    --bg-card: #ffffff;
+    --text-primary: #1f2937;
+    --text-secondary: #4b5563;
+    --text-muted: #6b7280;
+    --border-color: #e5e7eb;
+    --shadow-color: rgba(0, 0, 0, 0.1);
+    --input-bg: #ffffff;
+    --table-stripe: #f9fafb;
+    --status-bg: #eff6ff;
+    --hover-bg: #f9fafb;
+    --toggle-text: #374151;
+}
+
+[data-theme="dark"] {
+    --bg-primary: #111827;
+    --bg-card: #374151;
+    --text-primary: #f3f4f6;
+    --text-secondary: #9ca3af;
+    --text-muted: #6b7280;
+    --border-color: #4b5563;
+    --shadow-color: rgba(0, 0, 0, 0.3);
+    --input-bg: #1f2937;
+    --table-stripe: #2d3748;
+    --status-bg: #2d3748;
+    --hover-bg: #4a5568;
+    --toggle-text: #e5e7eb;
+}
+
+/* Apply dark mode styles only when data-theme="dark" is set */
+[data-theme="dark"] body {
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Status box - dark mode override */
+[data-theme="dark"] .bg-blue-50 {
+    background-color: var(--status-bg) !important;
+    border-color: var(--border-color) !important;
+}
+
+[data-theme="dark"] .bg-blue-50 .text-blue-800 {
+    color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .bg-blue-50 .text-blue-600 {
+    color: var(--text-secondary) !important;
+}
+
+[data-theme="dark"] .border-blue-200 {
+    border-color: var(--border-color) !important;
+}
+
+/* Card backgrounds - dark mode */
+[data-theme="dark"] .bg-white,
+[data-theme="dark"] .bg-gray-100 {
+    background-color: var(--bg-card) !important;
+}
+
+[data-theme="dark"] .bg-gray-50 {
+    background-color: var(--table-stripe) !important;
+}
+
+/* Text colors - dark mode */
+[data-theme="dark"] .text-gray-800,
+[data-theme="dark"] .text-gray-700,
+[data-theme="dark"] .text-gray-600 {
+    color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .text-gray-500,
+[data-theme="dark"] .text-gray-400 {
+    color: var(--text-muted) !important;
+}
+
+[data-theme="dark"] .border-gray-300,
+[data-theme="dark"] .border-gray-200 {
+    border-color: var(--border-color) !important;
+}
+
+/* Hover effects - dark mode */
+[data-theme="dark"] #toggleFormBtn {
+    color: var(--text-primary);
+}
+
+[data-theme="dark"] #toggleFormBtn:hover,
+[data-theme="dark"] .cursor-pointer.hover\:bg-gray-50:hover {
+    background-color: var(--hover-bg) !important;
+}
+
+[data-theme="dark"] #toggleIcon {
+    color: var(--text-secondary) !important;
+}
+
+[data-theme="dark"] #logsToggleIcon {
+    color: var(--text-secondary) !important;
+}
+
+/* Form inputs - dark mode */
+[data-theme="dark"] input,
+[data-theme="dark"] select,
+[data-theme="dark"] textarea {
+    background-color: var(--input-bg) !important;
+    color: var(--text-primary) !important;
+    border-color: var(--border-color) !important;
+}
+
+[data-theme="dark"] input::placeholder,
+[data-theme="dark"] textarea::placeholder {
+    color: var(--text-muted) !important;
+}
+
+[data-theme="dark"] .shadow-md,
+[data-theme="dark"] .shadow {
+    box-shadow: 0 4px 6px -1px var(--shadow-color), 0 2px 4px -1px var(--shadow-color) !important;
+}
+
+/* Modal - dark mode */
+[data-theme="dark"] #qrModal .bg-white {
+    background-color: var(--bg-card) !important;
+    color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] #qrModal .text-gray-900 {
+    color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] #qrModal .bg-gray-50 {
+    background-color: var(--table-stripe) !important;
+}
+
+[data-theme="dark"] #qrModal .border-gray-200 {
+    border-color: var(--border-color) !important;
+}
+
+[data-theme="dark"] #qrModal .text-gray-700 {
+    color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] #qrModal .text-gray-600 {
+    color: var(--text-secondary) !important;
+}
+
+[data-theme="dark"] #qrModal .text-gray-500 {
+    color: var(--text-muted) !important;
+}
+
+[data-theme="dark"] #qrModal .bg-yellow-50 {
+    background-color: #78350f !important;
+}
+
+[data-theme="dark"] #qrModal .text-yellow-700 {
+    color: #fcd34d !important;
+}
+
+[data-theme="dark"] #qrModal .text-yellow-400 {
+    color: #fbbf24 !important;
+}
+
+[data-theme="dark"] #qrModal .border-yellow-400 {
+    border-color: #f59e0b !important;
+}
+
+/* Status indicator inside the box - dark mode */
+[data-theme="dark"] .bg-white.rounded-md.px-3.py-1 {
+    background-color: var(--input-bg) !important;
+    color: var(--text-primary) !important;
+}
+
+/* Toggle button text - dark mode */
+[data-theme="dark"] #toggleFormBtn .text-gray-700 {
+    color: var(--toggle-text) !important;
+}
+
+/* Client items - dark mode */
+[data-theme="dark"] .client-item.bg-gray-50 {
+    background-color: var(--table-stripe) !important;
+}
+
+[data-theme="dark"] .client-item:hover {
+    background-color: var(--hover-bg) !important;
+}
+
+/* Buttons - dark mode (keep their colors) */
+[data-theme="dark"] .bg-blue-500 {
+    background-color: #3b82f6 !important;
+}
+
+[data-theme="dark"] .bg-blue-500:hover {
+    background-color: #2563eb !important;
+}
+
+[data-theme="dark"] .bg-green-500 {
+    background-color: #22c55e !important;
+}
+
+[data-theme="dark"] .bg-green-500:hover {
+    background-color: #16a34a !important;
+}
+
+[data-theme="dark"] .bg-red-500 {
+    background-color: #ef4444 !important;
+}
+
+[data-theme="dark"] .bg-red-500:hover {
+    background-color: #dc2626 !important;
+}
+
+[data-theme="dark"] .bg-purple-500 {
+    background-color: #8b5cf6 !important;
+}
+
+[data-theme="dark"] .bg-purple-500:hover {
+    background-color: #7c3aed !important;
+}
+
+[data-theme="dark"] .bg-gray-500 {
+    background-color: #6b7280 !important;
+}
+
+[data-theme="dark"] .bg-gray-500:hover {
+    background-color: #4b5563 !important;
+}
+
+/* Gradient buttons - dark mode */
+[data-theme="dark"] .bg-gradient-to-r.from-blue-500.to-cyan-500 {
+    background-image: linear-gradient(to right, #3b82f6, #06b6d4) !important;
+}
+
+[data-theme="dark"] .bg-gradient-to-r.from-green-500.to-green-600 {
+    background-image: linear-gradient(to right, #22c55e, #16a34a) !important;
+}
+
+[data-theme="dark"] .bg-gradient-to-r.from-gray-500.to-gray-600 {
+    background-image: linear-gradient(to right, #6b7280, #4b5563) !important;
+}
+
+[data-theme="dark"] .bg-gradient-to-r.from-yellow-500.to-orange-500 {
+    background-image: linear-gradient(to right, #eab308, #f97316) !important;
+}
+
+[data-theme="dark"] .bg-gradient-to-r.from-purple-500.to-indigo-500 {
+    background-image: linear-gradient(to right, #8b5cf6, #6366f1) !important;
+}
+
+[data-theme="dark"] .bg-gradient-to-r.from-yellow-500.to-amber-500 {
+    background-image: linear-gradient(to right, #eab308, #f59e0b) !important;
+}
+
+[data-theme="dark"] .bg-gradient-to-r.from-green-500.to-emerald-500 {
+    background-image: linear-gradient(to right, #22c55e, #10b981) !important;
+}
+
+/* Status badges - dark mode */
+[data-theme="dark"] .bg-green-100.text-green-800 {
+    background-color: #064e3b !important;
+    color: #6ee7b7 !important;
+}
+
+[data-theme="dark"] .bg-red-100.text-red-800 {
+    background-color: #7f1d1d !important;
+    color: #fca5a5 !important;
+}
+
+[data-theme="dark"] .bg-yellow-100.text-yellow-800 {
+    background-color: #78350f !important;
+    color: #fcd34d !important;
+}
+
+/* Obfuscation parameters section - dark mode */
+[data-theme="dark"] #obfuscationParams {
+    background-color: var(--table-stripe) !important;
+}
+
+[data-theme="dark"] .text-gray-600 {
+    color: var(--text-secondary) !important;
+}
+
+/* Logs section - dark mode */
+[data-theme="dark"] .border-t.border-gray-200 {
+    border-color: var(--border-color) !important;
+}
+
+/* Config textarea - dark mode */
+[data-theme="dark"] #configText {
+    background-color: var(--input-bg) !important;
+    color: var(--text-primary) !important;
+    border-color: var(--border-color) !important;
+}
+
+/* Status indicator dot */
+#statusIndicator {
+    transition: background-color 0.3s ease;
+}
+
+/* Theme toggle button */
+#themeToggle {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 1.5rem;
+    padding: 0.25rem;
+    border-radius: 0.5rem;
+    transition: all 0.3s ease;
+}
+
+#themeToggle:hover {
+    transform: scale(1.1);
+    background-color: var(--hover-bg);
+}
+
+/* Smooth transitions for theme switching */
+* {
+    transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+}

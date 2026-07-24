@@ -1,5 +1,14 @@
 # CHANGELOG
 
+## Version 1.8.4
+### Improvements
+- QR code picture is saved with both client and server names in the file name (#71)
+### New Features
+- Dark theme added (#62)
+- Container uptime is displayed in top status bar
+- Version is displayed in the footer. Value comes from Dockerfile APP_VERSION
+- Favicon was added (#68)
+
 ## Version 1.8.3
 ### Improvements
 - Show suspend date near client name on the main page. If no suspend date set - nothing is displayed.

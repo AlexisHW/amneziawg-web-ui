@@ -12,6 +12,7 @@ from flask_socketio import SocketIO
 import threading
 import time
 import ipaddress
+import datetime
 
 # Get the absolute path to the current directory
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -46,6 +47,7 @@ DEFAULT_MTU = int(os.getenv('DEFAULT_MTU', '1280'))
 DEFAULT_SUBNET = os.getenv('DEFAULT_SUBNET', '10.0.0.0/24')
 DEFAULT_PORT = int(os.getenv('DEFAULT_PORT', '51820'))
 DEFAULT_DNS = os.getenv('DEFAULT_DNS', '8.8.8.8,1.1.1.1')
+APP_VERSION = os.getenv('APP_VERSION', '1.0.0')
 
 # Parse DNS servers from comma-separated string
 DNS_SERVERS = [dns.strip() for dns in DEFAULT_DNS.split(',') if dns.strip()]
@@ -174,6 +176,32 @@ class AmneziaManager:
             return True
         except:
             return False
+        
+    def get_container_uptime():
+        """Get container uptime from /proc/uptime"""
+        try:
+            with open('/proc/uptime', 'r') as f:
+                uptime_seconds = float(f.read().split()[0])
+            
+            # Calculate days, hours, minutes, seconds
+            days = int(uptime_seconds // 86400)
+            hours = int((uptime_seconds % 86400) // 3600)
+            minutes = int((uptime_seconds % 3600) // 60)
+            seconds = int(uptime_seconds % 60)
+            
+            parts = []
+            if days > 0:
+                parts.append(f"{days}d")
+            if hours > 0:
+                parts.append(f"{hours}h")
+            if minutes > 0:
+                parts.append(f"{minutes}m")
+            if seconds > 0:
+                parts.append(f"{seconds}s")
+            
+            return " ".join(parts) if parts else "0s"
+        except:
+            return "Unknown"
 
     def auto_start_servers(self):
         """Auto-start servers that have config files and were running before"""
@@ -1260,7 +1288,7 @@ amnezia_manager = AmneziaManager()
 @app.route('/')
 def index():
     print("Serving index.html")
-    return render_template('index.html')
+    return render_template('index.html', version=APP_VERSION)
 
 # Explicit static file route to ensure they're served
 @app.route('/static/<path:filename>')
@@ -1669,7 +1697,7 @@ def get_container_uptime():
     minutes = (uptime_seconds % 3600) // 60
     seconds = uptime_seconds % 60
     
-    return f"Container Uptime: {days}d {hours}h {minutes}m {seconds}s"
+    return f"{days}d {hours}h {minutes}m {seconds}s"
 
 @app.route('/api/logs/list')
 def get_logs_list():
@@ -1766,6 +1794,11 @@ def format_bytes(bytes_value):
             return f"{bytes_value:.1f} {unit}"
         bytes_value /= 1024.0
     return f"{bytes_value:.1f} TB"
+
+@app.route('/api/system/uptime')
+def get_uptime():
+    uptime = get_container_uptime()
+    return jsonify({'uptime': uptime})
 
 @socketio.on('connect')
 def handle_connect():

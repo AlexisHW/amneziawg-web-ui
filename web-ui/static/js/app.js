@@ -3,17 +3,55 @@ class AmneziaApp {
     constructor() {
         this.socket = null;
         this.init();
+        this.uptimeInterval = null;
+        this.theme = localStorage.getItem('theme') || 'light';
     }
 
     init() {
         document.addEventListener('DOMContentLoaded', () => {
             console.log("AmneziaWG Web UI initializing...");
+            this.initTheme();
             this.setupEventListeners();
             this.setupSocketIO();
             this.loadInitialData();
             this.loadDefaultISettings();
             this.createLogsSection();
         });
+    }
+
+    // Add uptime loading method
+    loadUptime() {
+        fetch('/api/system/uptime')
+            .then(response => response.json())
+            .then(data => {
+                const uptimeElement = this.getElement('uptimeDisplay');
+                if (uptimeElement) {
+                    uptimeElement.textContent = data.uptime;
+                }
+            })
+            .catch(error => {
+                console.error('Error loading uptime:', error);
+            });
+    }
+
+    initTheme() {
+        const themeToggle = this.getElement('themeToggle');
+        if (themeToggle) {
+            // Set initial theme
+            document.documentElement.setAttribute('data-theme', this.theme);
+            themeToggle.textContent = this.theme === 'dark' ? '☀️' : '🌙';
+            
+            // Toggle handler
+            themeToggle.addEventListener('click', () => {
+                this.theme = this.theme === 'light' ? 'dark' : 'light';
+                document.documentElement.setAttribute('data-theme', this.theme);
+                localStorage.setItem('theme', this.theme);
+                themeToggle.textContent = this.theme === 'dark' ? '☀️' : '🌙';
+                
+                // No need for manual class toggling - CSS variables handle it
+                // The status box will automatically update via CSS
+            });
+        }
     }
 
     // Utility function to safely get elements
@@ -243,6 +281,20 @@ class AmneziaApp {
             });
     }
 
+    loadUptime() {
+        fetch('/api/system/uptime')
+            .then(response => response.json())
+            .then(data => {
+                const uptimeElement = this.getElement('uptimeDisplay');
+                if (uptimeElement) {
+                    uptimeElement.textContent = data.uptime;
+                }
+            })
+            .catch(error => {
+                console.error('Error loading uptime:', error);
+            });
+    }
+
     setupSocketIO() {
         // Get the current host and protocol
         const protocol = window.location.protocol;
@@ -269,12 +321,12 @@ class AmneziaApp {
 
         this.socket.on('connect', () => {
             console.log("✅ Connected to server via WebSocket");
-            this.updateStatus('Connected to AmneziaWG Web UI');
+            this.updateStatus('Connected');
         });
 
         this.socket.on('disconnect', () => {
             console.log("❌ Disconnected from server");
-            this.updateStatus('Disconnected from AmneziaWG Web UI');
+            this.updateStatus('Disconnected');
         });
 
         this.socket.on('connect_error', (error) => {
@@ -660,6 +712,13 @@ class AmneziaApp {
     loadInitialData() {
         this.loadServers();
         this.loadPublicIp();
+        this.loadUptime();
+        
+        // Update uptime every 10 seconds
+        if (this.uptimeInterval) {
+            clearInterval(this.uptimeInterval);
+        }
+        this.uptimeInterval = setInterval(() => this.loadUptime(), 10000);
     }
 
     loadPublicIp() {
@@ -1603,6 +1662,8 @@ class AmneziaApp {
     }
 
     showClientQRCode(serverId, clientId, clientName) {
+        const server = this.servers.find(s => s.id === serverId);
+        const serverName = server ? server.name : serverId;
         const modalHtml = `
             <div id="qrModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center">
                 <div class="relative p-8 border w-11/12 md:w-3/4 lg:w-2/3 xl:w-1/2 shadow-2xl rounded-2xl bg-white">
@@ -1657,7 +1718,7 @@ class AmneziaApp {
                                 </div>
                                 <!-- Download QR Code button outside the box -->
                                 <div class="mt-4 text-center">
-                                    <button onclick="amneziaApp.downloadQRCode()"
+                                    <button onclick="amneziaApp.downloadQRCode('${clientName}', '${serverName}')"
                                             id="downloadQRBtn"
                                             class="inline-flex items-center bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white px-5 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 shadow hover:shadow-lg transform hover:-translate-y-0.5">
                                         <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1919,16 +1980,18 @@ class AmneziaApp {
         this.updateConfigTypeLabel();
     }
 
-    downloadQRCode() {
+    downloadQRCode(clientName, serverName) {
         const qrContainer = document.getElementById('qrcode');
         if (!qrContainer) return;
         
         const canvas = qrContainer.querySelector('canvas');
         if (!canvas) return;
         
-        // Create a temporary link to download the canvas as PNG
+        const cleanClientName = clientName ? clientName.replace(/[^a-z0-9]/gi, '_') : 'client';
+        const cleanServerName = serverName ? serverName.replace(/[^a-z0-9]/gi, '_') : 'server';
+        
         const link = document.createElement('a');
-        link.download = `${this.qrClientName.replace(/[^a-z0-9]/gi, '_')}_qr_code.png`;
+        link.download = `${cleanClientName}_qr_code_${cleanServerName}.png`;
         link.href = canvas.toDataURL('image/png');
         link.click();
     }

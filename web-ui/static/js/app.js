@@ -809,6 +809,17 @@ class AmneziaApp {
         this.loadAllServerTraffic();
     }
 
+    escapeJSString(str) {
+        if (!str) return '';
+        return str
+            .replace(/\\/g, '\\\\')  // Escape backslashes
+            .replace(/'/g, "\\'")    // Escape single quotes
+            .replace(/"/g, '\\"')    // Escape double quotes
+            .replace(/\n/g, '\\n')   // Escape newlines
+            .replace(/\r/g, '\\r')   // Escape carriage returns
+            .replace(/\t/g, '\\t');  // Escape tabs
+    }
+
     renderServerClients(serverId, clients, traffic = {}) {
         if (clients.length === 0) {
             return '<p class="text-gray-500 text-sm">No clients yet.</p>';
@@ -886,7 +897,7 @@ class AmneziaApp {
                                 </svg>
                                 Edit
                             </button>
-                            <button onclick="amneziaApp.showClientQRCode('${serverId}', '${client.id}', '${client.name}')"
+                            <button onclick="amneziaApp.showClientQRCode('${serverId}', '${client.id}', '${this.escapeJSString(client.name)}')"
                                     class="bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 shadow hover:shadow-md flex items-center"
                                     title="Show QR Code">
                                 <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">

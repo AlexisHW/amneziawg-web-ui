@@ -6,7 +6,7 @@ chmod -R 755 /app/web-ui/
 chown :www-data /var/www/le
 chmod -R 755 /var/www/le
 
-lsmod | grep -E "^nf_tables|^nft_"
+lsmod | grep -E "^nf_tables|^nft_" > /dev/null
 nft_true=$?
 
 if [ "$nft_true" -ne 0 ]; then

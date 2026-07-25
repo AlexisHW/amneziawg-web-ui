@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## Version 1.8.5
+### Fix
+- Fix an issue when QR code modal is not opened if there is an apostrophe in the client name (#64)
+### Improvements
+- Minor code cleanup
+- Add client name special symbols escape
+
 ## Version 1.8.4
 ### Improvements
 - QR code picture is saved with both client and server names in the file name (#71)

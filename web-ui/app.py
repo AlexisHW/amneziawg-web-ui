@@ -177,7 +177,7 @@ class AmneziaManager:
         except:
             return False
         
-    def get_container_uptime():
+    def get_container_uptime(self):
         """Get container uptime from /proc/uptime"""
         try:
             with open('/proc/uptime', 'r') as f:

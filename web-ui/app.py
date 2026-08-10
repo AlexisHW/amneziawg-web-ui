@@ -54,6 +54,7 @@ DNS_SERVERS = [dns.strip() for dns in DEFAULT_DNS.split(',') if dns.strip()]
 
 # Fixed values for other settings
 WEB_UI_PORT = 5000
+WEBUI_BASE_PATH = os.getenv('WEBUI_BASE_PATH', '')
 CONFIG_DIR = '/etc/amnezia'
 WIREGUARD_CONFIG_DIR = os.path.join(CONFIG_DIR, 'amneziawg')
 CONFIG_FILE = os.path.join(CONFIG_DIR, 'web_config.json')
@@ -98,6 +99,19 @@ app = Flask(__name__,
     static_folder=STATIC_DIR
 )
 app.secret_key = os.urandom(24)
+app.config['APPLICATION_ROOT'] = WEBUI_BASE_PATH or '/'
+
+# override url_for() to automatically prepend BASE_PATH to all generated URLs
+@app.context_processor
+def inject_url_for():
+    from flask import url_for as flask_url_for
+    def url_for_with_prefix(endpoint, **values):
+        url = flask_url_for(endpoint, **values)
+        if url.startswith('/'):
+            return WEBUI_BASE_PATH + url
+        return url
+    return {'url_for': url_for_with_prefix}
+
 socketio = SocketIO(
     app,
     async_mode='eventlet',
@@ -1288,7 +1302,7 @@ amnezia_manager = AmneziaManager()
 @app.route('/')
 def index():
     print("Serving index.html")
-    return render_template('index.html', version=APP_VERSION)
+    return render_template('index.html', version=APP_VERSION, WEBUI_BASE_PATH=WEBUI_BASE_PATH)
 
 # Explicit static file route to ensure they're served
 @app.route('/static/<path:filename>')

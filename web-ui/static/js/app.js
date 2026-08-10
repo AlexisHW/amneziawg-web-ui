@@ -8,6 +8,24 @@ class AmneziaApp {
     }
 
     init() {
+        // Override global fetch to add URL prefix support
+        const originalFetch = window.fetch;
+        window.fetch = (url, options) => {
+            if (typeof url === 'string' && url.startsWith('/')) {
+                url = this.prepareUrl(url);
+            }
+            return originalFetch(url, options);
+        };
+
+        // Override global window.open to add URL prefix support
+        const originalOpen = window.open;
+        window.open = (url, target, features) => {
+            if (typeof url === 'string' && url.startsWith('/')) {
+                url = this.prepareUrl(url);
+            }
+            return originalOpen(url, target, features);
+        };
+
         document.addEventListener('DOMContentLoaded', () => {
             console.log("AmneziaWG Web UI initializing...");
             this.initTheme();
@@ -17,6 +35,12 @@ class AmneziaApp {
             this.loadDefaultISettings();
             this.createLogsSection();
         });
+    }
+
+    // Prepare relative URLs (add WEBUI_BASE_PATH prefix) for requests through reverse proxy 
+    prepareUrl(path) {
+        const prefix = window.WEBUI_BASE_PATH || '';
+        return prefix + path;
     }
 
     // Add uptime loading method
@@ -310,7 +334,7 @@ class AmneziaApp {
         }
 
         this.socket = io(socketUrl, {
-            path: '/socket.io',
+            path: this.prepareUrl('/socket.io'),
             transports: ['polling', 'websocket'],  // Allow both for handshake
             upgrade: true,
             reconnection: true,

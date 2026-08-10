@@ -196,6 +196,7 @@ Official docker image repository: https://hub.docker.com/r/alexishw/amneziawg-we
 | `SSL_EMAIL` | `-` | Email used to register Let's encrypt account
 | `SSL_DOMAIN` | `-` | Domain used for SSL cert generation by certbot
 | `IP_LIST` | `-` | A list of IP addresses or IP ranges to allow connections from.
+| `WEBUI_BASE_PATH` | `-` | URL prefix for reverse proxy deployment (e.g., `/amnezia-ui`, `/vpn/admin`). Automatically prepended to all API calls. |
 
 ### Docker Compose Example
 
@@ -254,9 +255,36 @@ docker run -d \
   -e DEFAULT_DNS="8.8.8.8,8.8.4.4" \
   -e SSL_EMAIL="your@email.com" \
   -e SSL_DOMAIN="your.domain.com" \
+  -e WEBUI_BASE_PATH="/amnezia-ui" \
   -v amnezia-data:/etc/amnezia \
   -v ssl:/etc/letsencrypt \
   alexishw/amneziawg-web-ui:master
+```
+
+## Reverse Proxy Deployment
+
+To deploy AmneziaWG Web UI behind a reverse proxy with a custom location prefix, use the `WEBUI_BASE_PATH` environment variable. This automatically prefixes all API calls and WebSocket connections.
+
+### Example: Nginx reverse proxy
+
+```bash
+# Run container with URL prefix
+docker run -d \
+  --name amnezia-web-ui \
+  -e WEBUI_BASE_PATH="/amnezia-ui" \
+  # ... other options ...
+  alexishw/amneziawg-web-ui:master
+```
+
+```nginx
+# Nginx configuration
+location /amnezia-ui/ {
+    proxy_pass http://amnezia-web-ui:80/;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "upgrade";
+    proxy_set_header Host $host;
+}
 ```
 
 ## SSL certificates issue

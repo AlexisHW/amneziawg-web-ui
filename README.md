@@ -410,15 +410,15 @@ Export Configuration
 To upgrade docker container to a newer version you need to stop and remove the existing container.
 ```
 docker stop awg; docker rm awg
-docker run <all option you need> amneziawg-ui:<latest tag>
+docker run <all option you need> alexishw/amneziawg-ui:<latest tag>
 ```
 > Take a note that all your app config is preserved if you mount the same host folder from the old container into a new one.
 
 If you use master tag, then you need to pull latest sha of this tag first.
 ```
-docker pull amneziawg-ui:master
+docker pull alexishw/amneziawg-ui:master
 docker stop awg; docker rm awg
-docker run <all option you need> amneziawg-ui:master
+docker run <all option you need> alexishw/amneziawg-ui:master
 ```
 
 # Security

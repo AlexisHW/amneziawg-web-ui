@@ -200,7 +200,6 @@ Official docker image repository: https://hub.docker.com/r/alexishw/amneziawg-we
 ### Docker Compose Example
 
 ```yaml
-version: '3.8'
 services:
   amnezia-web-ui:
     image: alexishw/amneziawg-web-ui:master
@@ -257,6 +256,32 @@ docker run -d \
   -v amnezia-data:/etc/amnezia \
   -v ssl:/etc/letsencrypt \
   alexishw/amneziawg-web-ui:master
+```
+
+## Web UI behind reverse proxy
+If you are using Amnezia Web UI behind nginx reverse proxy you need to use a similar nginx config supporting WebSocket and doing URI rewrite:
+```
+location ^~ /ui/ {
+    rewrite ^/ui/(.*)$ /$1 break;
+    proxy_pass http://localhost:9090;
+    proxy_set_header Host localhost;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Real-Port $remote_port;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header REMOTE-HOST $remote_addr;
+
+    proxy_connect_timeout 60s;
+    proxy_send_timeout 600s;
+    proxy_read_timeout 600s;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "upgrade";
+}
+
+# Redirect /ui -> /ui/ so the location above is matched
+location = /ui {
+    return 301 /ui/;
+}
 ```
 
 ## SSL certificates issue
@@ -380,6 +405,21 @@ Export Configuration
 ### Test iptables configuration
 
 `curl "http://localhost/api/system/iptables-test?server_id=wg_abc123"`
+
+# Version upgrade
+To upgrade docker container to a newer version you need to stop and remove the existing container.
+```
+docker stop awg; docker rm awg
+docker run <all option you need> amneziawg-ui:<latest tag>
+```
+> Take a note that all your app config is preserved if you mount the same host folder from the old container into a new one.
+
+If you use master tag, then you need to pull latest sha of this tag first.
+```
+docker pull amneziawg-ui:master
+docker stop awg; docker rm awg
+docker run <all option you need> amneziawg-ui:master
+```
 
 # Security
 The app is exposed directly on 80 or custom port with basic authentication.

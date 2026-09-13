@@ -122,6 +122,14 @@ class AmneziaApp {
             this.toggleAwg2Fields(awg2Checkbox.checked);
         }
 
+        const awg3Checkbox = this.getElement('enableAwg3');
+        if (awg3Checkbox) {
+            awg3Checkbox.addEventListener('change', (e) => {
+                this.toggleAwg3Fields(e.target.checked);
+            });
+            this.toggleAwg3Fields(awg3Checkbox.checked);
+        }
+
         // Form validation listeners
         this.setupFormValidation();
         
@@ -178,6 +186,13 @@ class AmneziaApp {
         
         if (s3Field) s3Field.style.display = show ? 'block' : 'none';
         if (s4Field) s4Field.style.display = show ? 'block' : 'none';
+    }
+
+    toggleAwg3Fields(show) {
+        const container = document.getElementById('awg3Fields');
+        if (container) {
+            container.style.display = show ? 'block' : 'none';
+        }
     }
 
     updateTrafficDisplay(trafficData) {
@@ -604,51 +619,65 @@ class AmneziaApp {
         const awg2Element = this.getElement('enableAwg2');
         const autoStartElement = this.getElement('autoStart');
         const endpointElement = this.getElement('serverEndpoint');
+        const awg3Element = this.getElement('enableAwg3');
 
         const formData = {
             name: nameElement ? nameElement.value.trim() : 'New Server',
             port: portElement ? parseInt(portElement.value) : 51820,
             subnet: subnetElement ? subnetElement.value : '10.0.0.0/24',
-            mtu: mtuElement ? parseInt(mtuElement.value) : 1420,
+            mtu: mtuElement ? parseInt(mtuElement.value) : 1280,
             dns: dnsElement ? dnsElement.value.trim() : '8.8.8.8,1.1.1.1',
             obfuscation: obfuscationElement ? obfuscationElement.checked : true,
             awg2: awg2Element ? awg2Element.checked : true,
             auto_start: autoStartElement ? autoStartElement.checked : true,
-            endpoint: endpointElement ? endpointElement.value.trim() : ''
+            endpoint: endpointElement ? endpointElement.value.trim() : '',
+            awg3: awg3Element ? awg3Element.checked : true
         };
 
         console.log("Form data:", formData);
 
         // Add obfuscation parameters if enabled
         if (formData.obfuscation) {
-            if (formData.obfuscation && formData.awg2) {
-                formData.obfuscation_params = {
-                    Jc: parseInt(this.getElement('paramJc')?.value || '8'),
-                    Jmin: parseInt(this.getElement('paramJmin')?.value || '8'),
-                    Jmax: parseInt(this.getElement('paramJmax')?.value || '80'),
-                    S1: parseInt(this.getElement('paramS1')?.value || '50'),
-                    S2: parseInt(this.getElement('paramS2')?.value || '60'),
-                    S3: parseInt(this.getElement('paramS3')?.value || '0'),
-                    S4: parseInt(this.getElement('paramS4')?.value || '0'),
-                    // Handle H1-H4 as strings to support ranges
-                    H1: this.getElement('paramH1')?.value || '1000',
-                    H2: this.getElement('paramH2')?.value || '2000',
-                    H3: this.getElement('paramH3')?.value || '3000',
-                    H4: this.getElement('paramH4')?.value || '4000',
-                };
+            // --- Base params (common to AWG 1.0 / 2.0 / 3.1) ---
+            formData.obfuscation_params = {
+                Jc:   parseInt(this.getElement('paramJc')?.value   || '8'),
+                Jmin: parseInt(this.getElement('paramJmin')?.value || '8'),
+                Jmax: parseInt(this.getElement('paramJmax')?.value || '80'),
+                S1:   parseInt(this.getElement('paramS1')?.value   || '50'),
+                S2:   parseInt(this.getElement('paramS2')?.value   || '60'),
+            };
+
+            if (formData.awg2 || formData.awg3) {
+                // --- AWG 2.0+ : ranged H1-H4, S3/S4, low min-S enforcement ---
+                Object.assign(formData.obfuscation_params, {
+                    S3: parseInt(this.getElement('paramS3')?.value || '12'),
+                    S4: parseInt(this.getElement('paramS4')?.value || '12'),
+                    // H1-H4 as strings to support ranges
+                    H1: this.getElement('paramH1')?.value || '1000-1999',
+                    H2: this.getElement('paramH2')?.value || '2000-2999',
+                    H3: this.getElement('paramH3')?.value || '3000-3999',
+                    H4: this.getElement('paramH4')?.value || '4000-4999',
+                });
             } else {
-                formData.obfuscation_params = {
-                    Jc: parseInt(this.getElement('paramJc')?.value || '8'),
-                    Jmin: parseInt(this.getElement('paramJmin')?.value || '8'),
-                    Jmax: parseInt(this.getElement('paramJmax')?.value || '80'),
-                    S1: parseInt(this.getElement('paramS1')?.value || '50'),
-                    S2: parseInt(this.getElement('paramS2')?.value || '60'),
-                    // Handle H1-H4 as strings to support ranges
+                // --- Legacy AWG 1.0 : fixed H1-H4, no S3/S4 ---
+                Object.assign(formData.obfuscation_params, {
                     H1: this.getElement('paramH1')?.value || '1000',
                     H2: this.getElement('paramH2')?.value || '2000',
                     H3: this.getElement('paramH3')?.value || '3000',
                     H4: this.getElement('paramH4')?.value || '4000',
-                };
+                });
+            }
+
+            if (formData.awg3) {
+                // --- AWG 3.1 only ---
+                Object.assign(formData.obfuscation_params, {
+                    HeaderProtectionKey:     this.getElement('paramHeaderProtectionKey')?.value || '',
+                    ContentPaddingAddition:  this.getElement('paramContentPaddingAddition')?.value || '10-50',
+                    RandomTrailers:          this.getElement('paramRandomTrailers')?.checked ? 1 : 0,
+                    RekeyAfterTime:          this.getElement('paramRekeyAfterTime')?.value || '1200-1800',
+                    RekeyTimeout:            this.getElement('paramRekeyTimeout')?.value || '10-25',
+                    KeepaliveTimeout:        this.getElement('paramKeepaliveTimeout')?.value || '20-40',
+                });
             }
 
             const obfErrors = this.validateObfuscationParamsJS(formData.obfuscation_params, formData.mtu);

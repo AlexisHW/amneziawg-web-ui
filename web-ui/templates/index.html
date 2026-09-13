@@ -81,10 +81,10 @@
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700">MTU (1280-1440) *</label>
-                            <input type="number" id="serverMTU" value="1420" min="1280" max="1440"
+                            <input type="number" id="serverMTU" value="1280" min="1280" max="1440"
                                 class="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2" required>
                             <p id="mtuError" class="text-red-500 text-xs mt-1 hidden">MTU must be between 1280 and 1440</p>
-                            <p class="text-gray-500 text-xs mt-1">Recommended: 1280 for basic internet, 1420-1440 for better performance</p>
+                            <p class="text-gray-500 text-xs mt-1">Recommended: 1280 for basic internet, 1420-1440 for better performance. AWG 3.1 requires 1280</p>
                         </div>
                     </div>
 
@@ -122,6 +122,9 @@
                         &nbsp; &nbsp;
                         <input type="checkbox" id="enableAwg2" checked class="mr-2">
                         <label class="text-sm font-medium text-gray-700">Enable AmneziaWG 2.0</label>
+                        &nbsp; &nbsp;
+                        <input type="checkbox" id="enableAwg3" checked class="mr-2">
+                        <label class="text-sm font-medium text-gray-700">Enable AmneziaWG 3.1</label>
                     </div>
 
                     <!-- Obfuscation Parameters -->
@@ -143,20 +146,20 @@
                         </div>
                         <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm mt-2">
                             <div>
-                                <label class="block text-xs font-medium text-gray-600">S1 (15-150)</label>
-                                <input type="number" id="paramS1" value="50" min="15" max="150" class="mt-1 block w-full border border-gray-300 rounded-md px-2 py-1 text-sm">
+                                <label class="block text-xs font-medium text-gray-600">S1 (12-150)</label>
+                                <input type="number" id="paramS1" value="50" min="12" max="150" class="mt-1 block w-full border border-gray-300 rounded-md px-2 py-1 text-sm">
                             </div>
                             <div>
-                                <label class="block text-xs font-medium text-gray-600">S2 (15-150)</label>
-                                <input type="number" id="paramS2" value="60" min="15" max="150" class="mt-1 block w-full border border-gray-300 rounded-md px-2 py-1 text-sm">
+                                <label class="block text-xs font-medium text-gray-600">S2 (12-150)</label>
+                                <input type="number" id="paramS2" value="60" min="12" max="150" class="mt-1 block w-full border border-gray-300 rounded-md px-2 py-1 text-sm">
                             </div>
                             <div id="awg2FieldS3" style="display: none;">
-                                <label class="block text-xs font-medium text-gray-600">S3 (0-256)</label>
-                                <input type="number" id="paramS3" value="0" min="0" max="256" class="mt-1 block w-full border border-gray-300 rounded-md px-2 py-1 text-sm">
+                                <label class="block text-xs font-medium text-gray-600">S3 (12-256)</label>
+                                <input type="number" id="paramS3" value="12" min="12" max="256" class="mt-1 block w-full border border-gray-300 rounded-md px-2 py-1 text-sm">
                             </div>
                             <div id="awg2FieldS4" style="display: none;">
-                                <label class="block text-xs font-medium text-gray-600">S4 (0-32)</label>
-                                <input type="number" id="paramS4" value="0" min="0" max="32" class="mt-1 block w-full border border-gray-300 rounded-md px-2 py-1 text-sm">
+                                <label class="block text-xs font-medium text-gray-600">S4 (12-32)</label>
+                                <input type="number" id="paramS4" value="12" min="12" max="32" class="mt-1 block w-full border border-gray-300 rounded-md px-2 py-1 text-sm">
                             </div>
                         </div>
                         <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm mt-2">
@@ -176,6 +179,64 @@
                                 <label class="block text-xs font-medium text-gray-600">H4</label>
                                 <input type="text" id="paramH4" value="4000" maxlength="32" class="mt-1 block w-full border border-gray-300 rounded-md px-2 py-1 text-sm">
                             </div>
+                        </div>
+
+                        <!-- ============================================== -->
+                        <!-- AWG 3.1 specific parameters                    -->
+                        <!-- ============================================== -->
+                        <div id="awg3Fields" class="mt-4 pt-4 border-t border-gray-200">
+                            <h4 class="text-sm font-semibold text-gray-700 mb-2">AmneziaWG 3.1 Parameters</h4>
+
+                            <div class="grid grid-cols-1 gap-4 text-sm">
+                                <div>
+                                    <label class="block text-xs font-medium text-gray-600">Header Protection Key (base64)</label>
+                                    <input type="text" id="paramHeaderProtectionKey"
+                                           placeholder="Leave empty to auto-generate a random 32-byte key"
+                                           class="mt-1 block w-full border border-gray-300 rounded-md px-2 py-1 text-sm font-mono">
+                                    <p class="text-gray-500 text-xs mt-1">ChaCha20 key used to encrypt packet headers. Must match on both sides.</p>
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm mt-2">
+                                <div class="col-span-2">
+                                    <label class="block text-xs font-medium text-gray-600">Content Padding Addition (recommended: 10-100 or 20-50)</label>
+                                    <input type="text" id="paramContentPaddingAddition" value="10-50"
+                                           placeholder="10-50"
+                                           class="mt-1 block w-full border border-gray-300 rounded-md px-2 py-1 text-sm">
+                                    <p class="text-gray-500 text-xs mt-1">Range of extra padding bytes added to transport packets.</p>
+                                </div>
+                                <div class="col-span-2 flex items-end">
+                                    <label class="flex items-center text-xs font-medium text-gray-700">
+                                        <input type="checkbox" id="paramRandomTrailers" checked class="mr-2">
+                                        Enable Random Trailers (Fills remaining space up to MTU with random bytes)
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm mt-2">
+                                <div>
+                                    <label class="block text-xs font-medium text-gray-600">Rekey After Time (recommended: 100-120, s)</label>
+                                    <input type="text" id="paramRekeyAfterTime" value="100-600"
+                                           class="mt-1 block w-full border border-gray-300 rounded-md px-2 py-1 text-sm">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-medium text-gray-600">Rekey Timeout (recommended: 3-7 or 5-15, s)</label>
+                                    <input type="text" id="paramRekeyTimeout" value="5-15"
+                                           class="mt-1 block w-full border border-gray-300 rounded-md px-2 py-1 text-sm">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-medium text-gray-600">Keepalive Timeout (recommended: 5-15 or 20-40, s)</label>
+                                    <input type="text" id="paramKeepaliveTimeout" value="20-40"
+                                           class="mt-1 block w-full border border-gray-300 rounded-md px-2 py-1 text-sm">
+                                </div>
+                            </div>
+
+                            <p class="text-amber-600 text-xs mt-2">
+                                ⚠️ When AWG 3.1 is enabled, S1–S4 must be at least <strong>12</strong>. Lower values will be clamped automatically.
+                            </p>
+                        </div>
+
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm mt-2">
                             <div class="col-span-2">
                                 <button type="button" id="randomParamsBtn" class="mt-6 bg-gray-500 text-white px-3 py-1 rounded text-sm hover:bg-gray-600">
                                     Generate Random Parameters

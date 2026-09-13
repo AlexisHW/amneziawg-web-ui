@@ -30,6 +30,13 @@ ALLOWED_LOG_FILES = [
 ALLOWED_LOG_PATHS = {log["path"] for log in ALLOWED_LOG_FILES}
 ALLOWED_LOG_TYPES = {log["type"]: log["path"] for log in ALLOWED_LOG_FILES}
 ALLOWED_LOG_REALPATHS = {os.path.realpath(path) for path in ALLOWED_LOG_PATHS}
+# AWG 3.1 defaults
+DEFAULT_HEADER_PROTECTION_KEY = ""          # generated per‑server
+DEFAULT_CONTENT_PADDING_ADDITION = "10-50"
+DEFAULT_RANDOM_TRAILERS = 1
+DEFAULT_REKEY_AFTER_TIME = "1200-1800"
+DEFAULT_REKEY_TIMEOUT = "10-25"
+DEFAULT_KEEPALIVE_TIMEOUT = "20-40"
 
 def resolve_allowed_log_path(path_value):
     """Resolve and validate that a path is one of the explicitly allowlisted log files."""
@@ -260,30 +267,36 @@ class AmneziaManager:
         except:
             return base64.b64encode(os.urandom(32)).decode('utf-8')
 
-    def generate_obfuscation_params(self, mtu=1420):
-        import random
-        S1 = random.randint(15, min(150, mtu - 148))
-        # S2 must not be S1+56
-        s2_candidates = [s for s in range(15, min(150, mtu - 92) + 1) if s != S1 + 56]
+    def generate_obfuscation_params(self, mtu=1280, awg3=False):
+        # S1‑S4 must be >=12 for AWG 3.1 header protection
+        min_s = 12 if awg3 else 15
+        S1 = random.randint(min_s, min(150, mtu - 148))
+        s2_candidates = [s for s in range(min_s, min(150, mtu - 92) + 1) if s != S1 + 56]
         S2 = random.choice(s2_candidates)
-        S3 = random.randint(1, 256)
-        S4 = random.randint(1, 32)
+        S3 = random.randint(min_s, 256)
+        S4 = random.randint(min_s, 32)
         Jmin = random.randint(4, mtu - 2)
         Jmax = random.randint(Jmin + 1, mtu)
-        return {
-            "Jc": random.randint(4, 12),
-            "Jmin": Jmin,
-            "Jmax": Jmax,
-            "S1": S1,
-            "S2": S2,
-            "S3": S3,
-            "S4": S4,
-            "H1": random.randint(10000, 100000),
-            "H2": random.randint(100000, 200000),
-            "H3": random.randint(200000, 300000),
-            "H4": random.randint(300000, 400000),
-            "MTU": mtu
+        Jc = random.randint(4, 12)
+        H1 = random.randint(10000, 100000)
+        H2 = random.randint(100000, 200000)
+        H3 = random.randint(200000, 300000)
+        H4 = random.randint(300000, 400000)
+        params: dict[str, int | str] = {
+            "S1": S1, "S2": S2, "S3": S3, "S4": S4,
+            "H1": H1, "H2": H2, "H3": H3, "H4": H4,
+            "Jc": Jc, "Jmin": Jmin, "Jmax": Jmax,
         }
+        if awg3:
+            params.update({
+                "HeaderProtectionKey": (self.execute_command("awg genkey") or "").strip(),
+                "ContentPaddingAddition": DEFAULT_CONTENT_PADDING_ADDITION,
+                "RandomTrailers": DEFAULT_RANDOM_TRAILERS,
+                "RekeyAfterTime": DEFAULT_REKEY_AFTER_TIME,
+                "RekeyTimeout": DEFAULT_REKEY_TIMEOUT,
+                "KeepaliveTimeout": DEFAULT_KEEPALIVE_TIMEOUT,
+            })
+        return params
 
     def create_wireguard_server(self, server_data):
         """Create a new WireGuard server configuration with environment defaults"""
@@ -333,14 +346,29 @@ class AmneziaManager:
         server_keys = self.generate_wireguard_keys()
 
         # Generate and use provided obfuscation parameters if enabled
-        obfuscation_params = None
-        if enable_obfuscation:
-            if 'obfuscation_params' in server_data:
-                obfuscation_params = server_data['obfuscation_params']
-            else:
-                obfuscation_params = self.generate_obfuscation_params(mtu)
-                
+        awg3_enabled = server_data.get('awg3', False)
         awg2_enabled = server_data.get('awg2', False)
+        obfuscation_params = None
+
+        if enable_obfuscation:
+            if 'obfuscation_params' in server_data and server_data['obfuscation_params']:
+                obfuscation_params = dict(server_data['obfuscation_params'])
+            else:
+                obfuscation_params = self.generate_obfuscation_params(mtu, awg3=awg3_enabled)
+
+            if awg3_enabled:
+                if not str(obfuscation_params.get("HeaderProtectionKey") or "").strip():
+                    obfuscation_params["HeaderProtectionKey"] = (self.execute_command("awg genkey") or "").strip()
+
+                obfuscation_params.setdefault("ContentPaddingAddition", DEFAULT_CONTENT_PADDING_ADDITION)
+                obfuscation_params.setdefault("RandomTrailers", DEFAULT_RANDOM_TRAILERS)
+                obfuscation_params.setdefault("RekeyAfterTime", DEFAULT_REKEY_AFTER_TIME)
+                obfuscation_params.setdefault("RekeyTimeout", DEFAULT_REKEY_TIMEOUT)
+                obfuscation_params.setdefault("KeepaliveTimeout", DEFAULT_KEEPALIVE_TIMEOUT)
+
+                # CRITICAL: HeaderProtectionKey requires S1-S4 >= 12
+                for key in ("S1", "S2", "S3", "S4"):
+                    obfuscation_params[key] = max(12, int(obfuscation_params.get(key, 12)))
 
         # Parse subnet for server IP
         subnet_parts = subnet.split('/')
@@ -374,6 +402,15 @@ H2 = {obfuscation_params['H2']}
 H3 = {obfuscation_params['H3']}
 H4 = {obfuscation_params['H4']}
 """
+            if awg3_enabled:
+                server_config_content += f"""
+HeaderProtectionKey = {obfuscation_params['HeaderProtectionKey']}
+ContentPaddingAddition = {obfuscation_params['ContentPaddingAddition']}
+RandomTrailers = {obfuscation_params['RandomTrailers']}
+RekeyAfterTime = {obfuscation_params['RekeyAfterTime']}
+RekeyTimeout = {obfuscation_params['RekeyTimeout']}
+KeepaliveTimeout = {obfuscation_params['KeepaliveTimeout']}
+"""
 
         server_config = {
             "id": server_id,
@@ -392,6 +429,7 @@ H4 = {obfuscation_params['H4']}
             "endpoint": endpoint,    # Store explicitly as endpoint for clarity
             "obfuscation_enabled": enable_obfuscation,
             "awg2_enabled": awg2_enabled,
+            "awg3_enabled": awg3_enabled,
             "obfuscation_params": obfuscation_params,
             "auto_start": auto_start,
             "dns": dns_servers,  # Store DNS servers
@@ -547,6 +585,7 @@ H4 = {obfuscation_params['H4']}
             "apply_i_settings": apply_i_settings,
             "i_settings": client_i_settings,
             "awg2_enabled": server.get("awg2_enabled", False),
+            "awg3_enabled": server.get("awg3_enabled", False),
             "allowed_ips": client_allowed_ips  # Store client-side AllowedIPs
         }
 
@@ -689,6 +728,15 @@ S4 = {params['S4']}
 H2 = {params['H2']}
 H3 = {params['H3']}
 H4 = {params['H4']}
+"""
+            if client_config.get('awg3_enabled', False):
+                config += f"""
+HeaderProtectionKey = {params['HeaderProtectionKey']}
+ContentPaddingAddition = {params['ContentPaddingAddition']}
+RandomTrailers = {params['RandomTrailers']}
+RekeyAfterTime = {params['RekeyAfterTime']}
+RekeyTimeout = {params['RekeyTimeout']}
+KeepaliveTimeout = {params['KeepaliveTimeout']}
 """
 
         # Add I-settings if enabled and I1 is present
@@ -1517,7 +1565,7 @@ def get_server_info(server_id):
         "public_ip": server['public_ip'],
         "server_ip": server['server_ip'],
         "subnet": server['subnet'],
-        "mtu": server.get('mtu', 1420),
+        "mtu": server.get('mtu', 1280),
         "obfuscation_enabled": server['obfuscation_enabled'],
         "obfuscation_params": server.get('obfuscation_params', {}),
         "clients_count": len(server['clients']),
@@ -1553,7 +1601,7 @@ def get_servers():
         server["status"] = amnezia_manager.get_server_status(server["id"])
         # Ensure MTU is included in basic server list
         if 'mtu' not in server:
-            server['mtu'] = 1420  # Default value
+            server['mtu'] = 1280  # Default value
 
     amnezia_manager.save_config()
     return jsonify(amnezia_manager.config["servers"])

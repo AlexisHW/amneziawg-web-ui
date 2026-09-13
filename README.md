@@ -197,13 +197,12 @@ Official docker image repository: https://hub.docker.com/r/alexishw/amneziawg-we
 | `SSL_DOMAIN` | `-` | Domain used for SSL cert generation by certbot
 | `IP_LIST` | `-` | A list of IP addresses or IP ranges to allow connections from.
 
-### Docker Compose Example
+### Docker Compose Example (without SSL support)
 
 ```yaml
 services:
   amnezia-web-ui:
     image: alexishw/amneziawg-web-ui:master
-    build: .
     container_name: amnezia-web-ui
     ports:
       - "8080:8080/tcp"
@@ -230,7 +229,7 @@ volumes:
  amnezia-data:
 ```
 
-### Docker Run Example
+### Docker Run Example (with SSL support)
 
 ```bash
 docker run -d \

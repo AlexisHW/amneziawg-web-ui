@@ -3,29 +3,32 @@
 ## Version 1.9.0
 ### New Features
 - AWG 3.1 support (#76)
-In AWG 3.1, there are four parameters accept either a single fixed integer or a randomized numeric range specified as min-max.
+
+In AWG 3.1 these four parameters accept either a single fixed integer or a randomized numeric range specified as min-max.
 They are local "client-side" parameters—meaning they do not have to match on both ends of the tunnel. Each side selects a random number from the specified range whenever it runs its timer, effectively disrupting statistical behavior tracking by Deep Packet Inspection (DPI).
 
 The technically allowed syntax types and recommended operational values for each parameter are detailed below:
 
 1. **ContentPaddingAddition**
 This parameter inserts random null bytes directly into the open-text transport payload before encryption to obscure predictable packet sizes.
-- Allowed Data Type: uint16, range (accepts values from 0 to 65535).
-- Operational Maximum: It automatically clips to your configured MTU. If a random padding value would push the packet over the MTU size, AWG truncates it to prevent packet fragmentation.
-Recommended Values: 10-100 or 20-50.
-- Zero Behavior: Setting it to 0 falls back to the native WireGuard behavior, which pads all payload data exactly to multiples of 16 bytes.
+  - Allowed Data Type: uint16, range (accepts values from 0 to 65535).
+  - Operational Maximum: It automatically clips to your configured MTU. If a random padding value would push the packet over the MTU size, AWG truncates it to prevent packet fragmentation.
+  Recommended Values: 10-100 or 20-50.
+  - Zero Behavior: Setting it to 0 falls back to the native WireGuard behavior, which pads all payload data exactly to multiples of 16 bytes.
 2. **RekeyAfterTime** Controls how long a session key remains valid before the protocol initiates a fresh cryptographic handshake.
-- Allowed Data Type: uint32, range (measured in seconds).
-- Vanilla WireGuard Default: Hardcoded strictly at exactly 120 seconds.
-- Recommended Values: 100-120 (to closely mimic standard behavior while varying the timing) or a broader range like 600-1800 (10 to 30 minutes) to drastically reduce handshake visibility on heavily throttled networks.
+  - Allowed Data Type: uint32, range (measured in seconds).
+  - Vanilla WireGuard Default: Hardcoded strictly at exactly 120 seconds.
+  - Recommended Values: 100-120 (to closely mimic standard behavior while varying the timing) or a broader range like 600-1800 (10 to 30 minutes) to drastically reduce handshake visibility on heavily throttled networks.
 3. **RekeyTimeout** The duration the protocol waits for a response after sending a handshake initiation packet before giving up and trying again.
-- Allowed Data Type: uint32, range (measured in seconds).
-- Vanilla WireGuard Default: Hardcoded strictly at exactly 5 seconds.
-- Recommended Values: 3-7 or 5-15. Giving it a range prevents DPI from flagging a rigid re-transmission cycle if your first handshake packet gets dropped or throttled.
+  - Allowed Data Type: uint32, range (measured in seconds).
+  - Vanilla WireGuard Default: Hardcoded strictly at exactly 5 seconds.
+  - Recommended Values: 3-7 or 5-15. Giving it a range prevents DPI from flagging a rigid re-transmission cycle if your first handshake packet gets dropped or throttled.
 4. **KeepaliveTimeout** The interval of network inactivity required before a peer automatically transmits an empty "keepalive" packet to hold firewalls and NAT mappings open.
-- Allowed Data Type: uint32, range (measured in seconds).
-- Vanilla WireGuard Default: Triggered by the PersistentKeepalive parameter (typically fixed at 25 seconds).
-- Recommended Values: 5-15 or 20-40.
+  - Allowed Data Type: uint32, range (measured in seconds).
+  - Vanilla WireGuard Default: Triggered by the PersistentKeepalive parameter (typically fixed at 25 seconds).
+  - Recommended Values: 5-15 or 20-40.
+
+Additionally int setting **RandomTrailers** (1 = Enable, 0 = Disable) fills remaining space up to MTU with random bytes.
 
 ####  Critical Requirements for Your Config
 Once you generate the key and paste it into HeaderProtectionKey = ..., ensure your configuration meets these strict rules:

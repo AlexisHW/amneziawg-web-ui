@@ -19,21 +19,6 @@ class AmneziaApp {
         });
     }
 
-    // Add uptime loading method
-    loadUptime() {
-        fetch('/api/system/uptime')
-            .then(response => response.json())
-            .then(data => {
-                const uptimeElement = this.getElement('uptimeDisplay');
-                if (uptimeElement) {
-                    uptimeElement.textContent = data.uptime;
-                }
-            })
-            .catch(error => {
-                console.error('Error loading uptime:', error);
-            });
-    }
-
     initTheme() {
         const themeToggle = this.getElement('themeToggle');
         if (themeToggle) {
@@ -140,6 +125,9 @@ class AmneziaApp {
                 this.toggleForm();
             });
         }
+
+        // Import/export listeners
+        this.setupImportListeners();
     }
 
     setupFormValidation() {
@@ -194,6 +182,8 @@ class AmneziaApp {
             container.style.display = show ? 'block' : 'none';
         }
     }
+
+    // ============ TRAFFIC METHODS ============
 
     updateTrafficDisplay(trafficData) {
         if (!trafficData) return;
@@ -296,6 +286,7 @@ class AmneziaApp {
             });
     }
 
+    // Uptime loading method
     loadUptime() {
         fetch('/api/system/uptime')
             .then(response => response.json())
@@ -600,6 +591,8 @@ class AmneziaApp {
         }
     }
 
+    // ============ SERVER METHODS ============
+
     createServer() {
         console.log("Creating server...");
 
@@ -822,6 +815,12 @@ class AmneziaApp {
                     <button onclick="amneziaApp.showServerConfig('${server.id}')" class="bg-purple-500 text-white px-3 py-1 rounded hover:bg-purple-600">
                         Show Config
                     </button>
+                    <button onclick="amneziaApp.exportServer('${server.id}')" class="bg-indigo-500 text-white px-3 py-1 rounded hover:bg-indigo-600">
+                        📤 Export Server
+                    </button>
+                    <button onclick="amneziaApp.importClientToServer('${server.id}')" class="bg-teal-500 text-white px-3 py-1 rounded hover:bg-teal-600">
+                        📥 Import Client
+                    </button>
                 </div>
                 <div id="clients-${server.id}">
                     ${this.renderServerClients(server.id, server.clients || [])}
@@ -848,6 +847,237 @@ class AmneziaApp {
             .replace(/\r/g, '\\r')   // Escape carriage returns
             .replace(/\t/g, '\\t');  // Escape tabs
     }
+
+    showServerError(message) {
+        const serversList = this.getElement('serversList');
+        if (serversList) {
+            serversList.innerHTML = `
+                <div class="text-center py-8 text-red-500">
+                    ${message}
+                </div>
+            `;
+        }
+    }
+
+    // Server management methods
+    deleteServer(serverId) {
+        if (confirm('Are you sure you want to delete this server and all its clients?')) {
+            fetch(`/api/servers/${serverId}`, { method: 'DELETE' })
+                .then(() => this.loadServers())
+                .catch(error => {
+                    console.error('Error deleting server:', error);
+                    alert('Error deleting server: ' + error.message);
+                });
+        }
+    }
+
+    startServer(serverId) {
+        fetch(`/api/servers/${serverId}/start`, { method: 'POST' })
+            .then(() => this.loadServers())
+            .catch(error => {
+                console.error('Error starting server:', error);
+                alert('Error starting server: ' + error.message);
+            });
+    }
+
+    stopServer(serverId) {
+        fetch(`/api/servers/${serverId}/stop`, { method: 'POST' })
+            .then(() => this.loadServers())
+            .catch(error => {
+                console.error('Error stopping server:', error);
+                alert('Error stopping server: ' + error.message);
+            });
+    }
+
+    showServerConfig(serverId) {
+        fetch(`/api/servers/${serverId}/info`)
+            .then(response => response.json())
+            .then(serverInfo => {
+                this.displayServerConfigModal(serverInfo);
+            })
+            .catch(error => {
+                console.error('Error fetching server info:', error);
+                alert('Error loading server configuration: ' + error.message);
+            });
+    }
+
+    showRawServerConfig(serverId) {
+        fetch(`/api/servers/${serverId}/config`)
+            .then(response => response.json())
+            .then(config => {
+                this.displayRawConfigModal(config);
+            })
+            .catch(error => {
+                console.error('Error fetching server config:', error);
+                alert('Error loading server configuration: ' + error.message);
+            });
+    }
+
+    downloadServerConfig(serverId) {
+        window.open(`/api/servers/${serverId}/config/download`, '_blank');
+    }
+
+    displayServerConfigModal(serverInfo) {
+        const modalHtml = `
+            <div id="configModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+                <div class="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-1/2 shadow-lg rounded-md bg-white">
+                    <div class="mt-3">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-lg font-medium text-gray-900">Server Configuration: ${serverInfo.name}</h3>
+                            <button onclick="amneziaApp.closeModal()" class="text-gray-400 hover:text-gray-600">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                </svg>
+                            </button>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                            <div class="bg-gray-50 p-3 rounded">
+                                <h4 class="font-semibold text-sm text-gray-700 mb-2">Basic Information</h4>
+                                <div class="space-y-1 text-sm">
+                                    <div><span class="font-medium">Interface:</span> ${serverInfo.interface}</div>
+                                    <div><span class="font-medium">Port:</span> ${serverInfo.port}</div>
+                                    <div><span class="font-medium">Subnet:</span> ${serverInfo.subnet}</div>
+                                    <div><span class="font-medium">Server IP:</span> ${serverInfo.server_ip}</div>
+                                    <div><span class="font-medium">Public IP:</span> ${serverInfo.public_ip}</div>
+                                    <div><span class="font-medium">Status:</span>
+                                        <span class="px-2 py-1 rounded-full text-xs ${
+                                            serverInfo.status === 'running' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                                        }">${serverInfo.status}</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="bg-gray-50 p-3 rounded">
+                                <h4 class="font-semibold text-sm text-gray-700 mb-2">Configuration</h4>
+                                <div class="space-y-1 text-sm">
+                                    <div><span class="font-medium">Protocol:</span> ${serverInfo.protocol}</div>
+                                    <div><span class="font-medium">Obfuscation:</span> ${serverInfo.obfuscation_enabled ? 'Enabled' : 'Disabled'}</div>
+                                    <div><span class="font-medium">Clients:</span> ${serverInfo.clients_count}</div>
+                                    <div><span class="font-medium">DNS:</span> ${serverInfo.dns.join(', ')}</div>
+                                    <div><span class="font-medium">MTU:</span> ${serverInfo.mtu}</div>
+                                    <div class="truncate"><span class="font-medium">Public Key:</span>
+                                        <span class="font-mono text-xs">${serverInfo.public_key}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        ${serverInfo.obfuscation_enabled ? `
+                        <div class="bg-blue-50 p-3 rounded mb-4">
+                            <h4 class="font-semibold text-sm text-blue-700 mb-2">Obfuscation Parameters</h4>
+                            <div class="grid grid-cols-3 md:grid-cols-6 gap-2 text-xs">
+                                ${Object.entries(serverInfo.obfuscation_params).map(([key, value]) => `
+                                    <div class="text-center">
+                                        <div class="font-medium">${key}</div>
+                                        <div class="font-mono">${value}</div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                        ` : ''}
+
+                        ${serverInfo.default_i_settings ? `
+                        <div class="bg-purple-50 p-3 rounded mb-4">
+                            <h4 class="font-semibold text-sm text-purple-700 mb-2">Default I-settings (AmneziaWG 1.5)</h4>
+                            <div class="grid grid-cols-2 md:grid-cols-5 gap-2 text-xs">
+                                ${Object.entries(serverInfo.default_i_settings).map(([key, value]) => `
+                                    <div class="text-center">
+                                        <div class="font-medium">${key}</div>
+                                        <div class="font-mono truncate" title="${value}">
+                                            ${value ? value.substring(0, 20) + '...' : 'empty'}
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                            <p class="text-xs text-purple-600 mt-2">
+                                These defaults are used for new clients when "Apply I-settings" is enabled.
+                            </p>
+                        </div>
+                        ` : ''}
+
+                        <div class="mb-4">
+                            <h4 class="font-semibold text-sm text-gray-700 mb-2">Configuration Preview</h4>
+                            <pre class="bg-gray-800 text-green-400 p-3 rounded text-xs overflow-x-auto max-h-40 overflow-y-auto">${serverInfo.config_preview}</pre>
+                        </div>
+
+                        <div class="flex justify-end space-x-3 pt-4 border-t">
+                            <button onclick="amneziaApp.showRawServerConfig('${serverInfo.id}')"
+                                    class="bg-blue-500 text-white px-4 py-2 rounded text-sm hover:bg-blue-600">
+                                View Full Config
+                            </button>
+                            <button onclick="amneziaApp.downloadServerConfig('${serverInfo.id}')"
+                                    class="bg-green-500 text-white px-4 py-2 rounded text-sm hover:bg-green-600">
+                                Download Config
+                            </button>
+                            <button onclick="amneziaApp.closeModal()"
+                                    class="bg-gray-500 text-white px-4 py-2 rounded text-sm hover:bg-gray-600">
+                                Close
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+    }
+
+    displayRawConfigModal(config) {
+        // Encode the config for safe passing through HTML attribute
+        const encodedConfig = encodeURIComponent(JSON.stringify(config));
+        const modalHtml = `
+            <div id="rawConfigModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+                <div class="relative top-10 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-2/3 shadow-lg rounded-md bg-white">
+                    <div class="mt-3">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-lg font-medium text-gray-900">Raw Configuration: ${config.server_name}</h3>
+                            <button onclick="amneziaApp.closeModal()" class="text-gray-400 hover:text-gray-600">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                </svg>
+                            </button>
+                        </div>
+
+                        <div class="mb-4">
+                            <div class="flex justify-between items-center mb-2">
+                                <span class="text-sm text-gray-600">Config path: ${config.config_path}</span>
+                                <button onclick="amneziaApp.copyToClipboard(decodeURIComponent('${encodedConfig}'))"
+                                        class="bg-gray-500 text-white px-3 py-1 rounded text-xs hover:bg-gray-600">
+                                    Copy JSON
+                                </button>
+                            </div>
+                            <pre class="bg-gray-900 text-green-400 p-4 rounded text-sm overflow-x-auto max-h-96 overflow-y-auto">${config.config_content}</pre>
+                        </div>
+
+                        <div class="flex justify-end space-x-3 pt-4 border-t">
+                            <button onclick="amneziaApp.downloadServerConfig('${config.server_id}')"
+                                    class="bg-green-500 text-white px-4 py-2 rounded text-sm hover:bg-green-600">
+                                Download Config
+                            </button>
+                            <button onclick="amneziaApp.closeModal()"
+                                    class="bg-gray-500 text-white px-4 py-2 rounded text-sm hover:bg-gray-600">
+                                Close
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // Close any existing modal first
+        this.closeModal();
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+    }
+
+    closeModal() {
+        const existingModal = document.getElementById('configModal') || document.getElementById('rawConfigModal');
+        if (existingModal) {
+            existingModal.remove();
+        }
+    }
+
+    // ============ CLIENT METHODS ============
 
     renderServerClients(serverId, clients, traffic = {}) {
         if (clients.length === 0) {
@@ -967,6 +1197,14 @@ class AmneziaApp {
                                 </svg>
                                 Delete
                             </button>
+                            <button onclick="amneziaApp.exportClient('${serverId}', '${client.id}')"
+                                    class="bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 shadow hover:shadow-md flex items-center"
+                                    title="Export Client">
+                                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                                </svg>
+                                Export
+                            </button>
                         </div>
                     </div>
                     `;
@@ -989,29 +1227,6 @@ class AmneziaApp {
         });
     }
 
-    showServerError(message) {
-        const serversList = this.getElement('serversList');
-        if (serversList) {
-            serversList.innerHTML = `
-                <div class="text-center py-8 text-red-500">
-                    ${message}
-                </div>
-            `;
-        }
-    }
-
-    // Server management methods
-    deleteServer(serverId) {
-        if (confirm('Are you sure you want to delete this server and all its clients?')) {
-            fetch(`/api/servers/${serverId}`, { method: 'DELETE' })
-                .then(() => this.loadServers())
-                .catch(error => {
-                    console.error('Error deleting server:', error);
-                    alert('Error deleting server: ' + error.message);
-                });
-        }
-    }
-
     deleteClient(serverId, clientId) {
         if (confirm('Are you sure you want to delete this client?')) {
             fetch(`/api/servers/${serverId}/clients/${clientId}`, { method: 'DELETE' })
@@ -1021,24 +1236,6 @@ class AmneziaApp {
                     alert('Error deleting client: ' + error.message);
                 });
         }
-    }
-
-    startServer(serverId) {
-        fetch(`/api/servers/${serverId}/start`, { method: 'POST' })
-            .then(() => this.loadServers())
-            .catch(error => {
-                console.error('Error starting server:', error);
-                alert('Error starting server: ' + error.message);
-            });
-    }
-
-    stopServer(serverId) {
-        fetch(`/api/servers/${serverId}/stop`, { method: 'POST' })
-            .then(() => this.loadServers())
-            .catch(error => {
-                console.error('Error stopping server:', error);
-                alert('Error stopping server: ' + error.message);
-            });
     }
 
     showClientModal(serverId, client = null) {
@@ -1513,194 +1710,6 @@ class AmneziaApp {
         window.open(`/api/servers/${serverId}/clients/${clientId}/config`, '_blank');
     }
 
-    showServerConfig(serverId) {
-        fetch(`/api/servers/${serverId}/info`)
-            .then(response => response.json())
-            .then(serverInfo => {
-                this.displayServerConfigModal(serverInfo);
-            })
-            .catch(error => {
-                console.error('Error fetching server info:', error);
-                alert('Error loading server configuration: ' + error.message);
-            });
-    }
-
-    showRawServerConfig(serverId) {
-        fetch(`/api/servers/${serverId}/config`)
-            .then(response => response.json())
-            .then(config => {
-                this.displayRawConfigModal(config);
-            })
-            .catch(error => {
-                console.error('Error fetching server config:', error);
-                alert('Error loading server configuration: ' + error.message);
-            });
-    }
-
-    downloadServerConfig(serverId) {
-        window.open(`/api/servers/${serverId}/config/download`, '_blank');
-    }
-
-    displayServerConfigModal(serverInfo) {
-        const modalHtml = `
-            <div id="configModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-                <div class="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-1/2 shadow-lg rounded-md bg-white">
-                    <div class="mt-3">
-                        <div class="flex justify-between items-center mb-4">
-                            <h3 class="text-lg font-medium text-gray-900">Server Configuration: ${serverInfo.name}</h3>
-                            <button onclick="amneziaApp.closeModal()" class="text-gray-400 hover:text-gray-600">
-                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                                </svg>
-                            </button>
-                        </div>
-
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                            <div class="bg-gray-50 p-3 rounded">
-                                <h4 class="font-semibold text-sm text-gray-700 mb-2">Basic Information</h4>
-                                <div class="space-y-1 text-sm">
-                                    <div><span class="font-medium">Interface:</span> ${serverInfo.interface}</div>
-                                    <div><span class="font-medium">Port:</span> ${serverInfo.port}</div>
-                                    <div><span class="font-medium">Subnet:</span> ${serverInfo.subnet}</div>
-                                    <div><span class="font-medium">Server IP:</span> ${serverInfo.server_ip}</div>
-                                    <div><span class="font-medium">Public IP:</span> ${serverInfo.public_ip}</div>
-                                    <div><span class="font-medium">Status:</span>
-                                        <span class="px-2 py-1 rounded-full text-xs ${
-                                            serverInfo.status === 'running' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                                        }">${serverInfo.status}</span>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="bg-gray-50 p-3 rounded">
-                                <h4 class="font-semibold text-sm text-gray-700 mb-2">Configuration</h4>
-                                <div class="space-y-1 text-sm">
-                                    <div><span class="font-medium">Protocol:</span> ${serverInfo.protocol}</div>
-                                    <div><span class="font-medium">Obfuscation:</span> ${serverInfo.obfuscation_enabled ? 'Enabled' : 'Disabled'}</div>
-                                    <div><span class="font-medium">Clients:</span> ${serverInfo.clients_count}</div>
-                                    <div><span class="font-medium">DNS:</span> ${serverInfo.dns.join(', ')}</div>
-                                    <div><span class="font-medium">MTU:</span> ${serverInfo.mtu}</div>
-                                    <div class="truncate"><span class="font-medium">Public Key:</span>
-                                        <span class="font-mono text-xs">${serverInfo.public_key}</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        ${serverInfo.obfuscation_enabled ? `
-                        <div class="bg-blue-50 p-3 rounded mb-4">
-                            <h4 class="font-semibold text-sm text-blue-700 mb-2">Obfuscation Parameters</h4>
-                            <div class="grid grid-cols-3 md:grid-cols-6 gap-2 text-xs">
-                                ${Object.entries(serverInfo.obfuscation_params).map(([key, value]) => `
-                                    <div class="text-center">
-                                        <div class="font-medium">${key}</div>
-                                        <div class="font-mono">${value}</div>
-                                    </div>
-                                `).join('')}
-                            </div>
-                        </div>
-                        ` : ''}
-
-                        ${serverInfo.default_i_settings ? `
-                        <div class="bg-purple-50 p-3 rounded mb-4">
-                            <h4 class="font-semibold text-sm text-purple-700 mb-2">Default I-settings (AmneziaWG 1.5)</h4>
-                            <div class="grid grid-cols-2 md:grid-cols-5 gap-2 text-xs">
-                                ${Object.entries(serverInfo.default_i_settings).map(([key, value]) => `
-                                    <div class="text-center">
-                                        <div class="font-medium">${key}</div>
-                                        <div class="font-mono truncate" title="${value}">
-                                            ${value ? value.substring(0, 20) + '...' : 'empty'}
-                                        </div>
-                                    </div>
-                                `).join('')}
-                            </div>
-                            <p class="text-xs text-purple-600 mt-2">
-                                These defaults are used for new clients when "Apply I-settings" is enabled.
-                            </p>
-                        </div>
-                        ` : ''}
-
-                        <div class="mb-4">
-                            <h4 class="font-semibold text-sm text-gray-700 mb-2">Configuration Preview</h4>
-                            <pre class="bg-gray-800 text-green-400 p-3 rounded text-xs overflow-x-auto max-h-40 overflow-y-auto">${serverInfo.config_preview}</pre>
-                        </div>
-
-                        <div class="flex justify-end space-x-3 pt-4 border-t">
-                            <button onclick="amneziaApp.showRawServerConfig('${serverInfo.id}')"
-                                    class="bg-blue-500 text-white px-4 py-2 rounded text-sm hover:bg-blue-600">
-                                View Full Config
-                            </button>
-                            <button onclick="amneziaApp.downloadServerConfig('${serverInfo.id}')"
-                                    class="bg-green-500 text-white px-4 py-2 rounded text-sm hover:bg-green-600">
-                                Download Config
-                            </button>
-                            <button onclick="amneziaApp.closeModal()"
-                                    class="bg-gray-500 text-white px-4 py-2 rounded text-sm hover:bg-gray-600">
-                                Close
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        `;
-
-        document.body.insertAdjacentHTML('beforeend', modalHtml);
-    }
-
-    displayRawConfigModal(config) {
-        // Encode the config for safe passing through HTML attribute
-        const encodedConfig = encodeURIComponent(JSON.stringify(config));
-        const modalHtml = `
-            <div id="rawConfigModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-                <div class="relative top-10 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-2/3 shadow-lg rounded-md bg-white">
-                    <div class="mt-3">
-                        <div class="flex justify-between items-center mb-4">
-                            <h3 class="text-lg font-medium text-gray-900">Raw Configuration: ${config.server_name}</h3>
-                            <button onclick="amneziaApp.closeModal()" class="text-gray-400 hover:text-gray-600">
-                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                                </svg>
-                            </button>
-                        </div>
-
-                        <div class="mb-4">
-                            <div class="flex justify-between items-center mb-2">
-                                <span class="text-sm text-gray-600">Config path: ${config.config_path}</span>
-                                <button onclick="amneziaApp.copyToClipboard(decodeURIComponent('${encodedConfig}'))"
-                                        class="bg-gray-500 text-white px-3 py-1 rounded text-xs hover:bg-gray-600">
-                                    Copy JSON
-                                </button>
-                            </div>
-                            <pre class="bg-gray-900 text-green-400 p-4 rounded text-sm overflow-x-auto max-h-96 overflow-y-auto">${config.config_content}</pre>
-                        </div>
-
-                        <div class="flex justify-end space-x-3 pt-4 border-t">
-                            <button onclick="amneziaApp.downloadServerConfig('${config.server_id}')"
-                                    class="bg-green-500 text-white px-4 py-2 rounded text-sm hover:bg-green-600">
-                                Download Config
-                            </button>
-                            <button onclick="amneziaApp.closeModal()"
-                                    class="bg-gray-500 text-white px-4 py-2 rounded text-sm hover:bg-gray-600">
-                                Close
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        `;
-
-        // Close any existing modal first
-        this.closeModal();
-        document.body.insertAdjacentHTML('beforeend', modalHtml);
-    }
-
-    closeModal() {
-        const existingModal = document.getElementById('configModal') || document.getElementById('rawConfigModal');
-        if (existingModal) {
-            existingModal.remove();
-        }
-    }
-
     showClientQRCode(serverId, clientId, clientName) {
         const server = this.servers.find(s => s.id === serverId);
         const serverName = server ? server.name : serverId;
@@ -2076,6 +2085,191 @@ class AmneziaApp {
         });
     }
 
+    // ============ EXPORT/IMPORT METHODS ============
+
+    exportAll() {
+        const btn = this.getElement('exportAllBtn');
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg> Exporting...';
+        }
+
+        fetch('/api/export/all')
+            .then(response => {
+                if (!response.ok) throw new Error('Export failed');
+                return response.blob();
+            })
+            .then(blob => {
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `awg-full-backup-${new Date().toISOString().slice(0, 10)}.json`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+                this.showImportStatus('Full backup exported successfully!', 'success');
+            })
+            .catch(error => {
+                console.error('Export error:', error);
+                this.showImportStatus('Export failed: ' + error.message, 'error');
+            })
+            .finally(() => {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg> Export All (Full Backup)';
+                }
+            });
+    }
+
+    exportServer(serverId) {
+        fetch(`/api/servers/${serverId}/export`)
+            .then(response => {
+                if (!response.ok) throw new Error('Export failed');
+                return response.blob();
+            })
+            .then(blob => {
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `awg-server-export-${serverId}-${Date.now()}.json`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+                this.showImportStatus('Server exported successfully!', 'success');
+            })
+            .catch(error => {
+                console.error('Export error:', error);
+                alert('Export failed: ' + error.message);
+            });
+    }
+
+    exportClient(serverId, clientId) {
+        fetch(`/api/servers/${serverId}/clients/${clientId}/export`)
+            .then(response => {
+                if (!response.ok) throw new Error('Export failed');
+                return response.blob();
+            })
+            .then(blob => {
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `awg-client-export-${clientId}-${Date.now()}.json`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+                this.showImportStatus('Client exported successfully!', 'success');
+            })
+            .catch(error => {
+                console.error('Export error:', error);
+                alert('Export failed: ' + error.message);
+            });
+    }
+
+    setupImportListeners() {
+        const importBtn = this.getElement('importBtn');
+        const importFileInput = this.getElement('importFileInput');
+
+        if (importBtn && importFileInput) {
+            importBtn.addEventListener('click', () => {
+                importFileInput.click();
+            });
+
+            importFileInput.addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    this.importConfig(file);
+                    importFileInput.value = ''; // Reset for next import
+                }
+            });
+        }
+    }
+
+    importConfig(file) {
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const importBtn = this.getElement('importBtn');
+        if (importBtn) {
+            importBtn.disabled = true;
+            importBtn.innerHTML = '<svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg> Importing...';
+        }
+
+        fetch('/api/import', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                this.showImportStatus(data.message, 'success');
+                this.loadServers();
+            } else {
+                this.showImportStatus('Import failed: ' + (data.error || 'Unknown error'), 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Import error:', error);
+            this.showImportStatus('Import failed: ' + error.message, 'error');
+        })
+        .finally(() => {
+            if (importBtn) {
+                importBtn.disabled = false;
+                importBtn.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg> Import Configuration';
+            }
+        });
+    }
+
+    importClientToServer(serverId) {
+        // Create a temporary file input for this specific server
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = '.json';
+
+        input.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            fetch(`/api/import/client/${serverId}`, {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    this.showImportStatus(data.message, 'success');
+                    this.loadServers();
+                } else {
+                    alert('Import failed: ' + (data.error || 'Unknown error'));
+                }
+            })
+            .catch(error => {
+                console.error('Import error:', error);
+                alert('Import failed: ' + error.message);
+            });
+        });
+
+        input.click();
+    }
+
+    showImportStatus(message, type) {
+        const statusEl = this.getElement('importStatus');
+        if (statusEl) {
+            statusEl.textContent = message;
+            statusEl.className = `text-sm ${type === 'success' ? 'text-green-600' : 'text-red-600'}`;
+            statusEl.classList.remove('hidden');
+
+            setTimeout(() => {
+                statusEl.classList.add('hidden');
+            }, 5000);
+        }
+    }
+
     showTempMessage(message, type) {
         const messageDiv = document.createElement('div');
         messageDiv.className = `fixed top-4 right-4 px-4 py-2 rounded text-white text-sm z-50 ${
@@ -2089,6 +2283,8 @@ class AmneziaApp {
             messageDiv.remove();
         }, 3000);
     }
+
+    // ============ LOGS METHODS ============
 
     createLogsSection() {
         const mainContainer = document.querySelector('.container.mx-auto.p-4');

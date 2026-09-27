@@ -2365,4 +2365,4 @@ if __name__ == '__main__':
     if AUTO_START_SERVERS:
         print("Auto-starting existing servers...")
 
-    socketio.run(app, host='0.0.0.0', port=WEB_UI_PORT, debug=False, allow_unsafe_werkzeug=True)
+    socketio.run(app, host='127.0.0.1', port=WEB_UI_PORT, debug=False, allow_unsafe_werkzeug=True)

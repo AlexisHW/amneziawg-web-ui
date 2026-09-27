@@ -40,33 +40,26 @@
                         <span id="uptimeDisplay" class="text-sm text-gray-600">Loading...</span>
                     </div>
                 </div>
-                <button id="refreshIpBtn" class="text-blue-500 hover:text-blue-700 text-sm">
-                    🔄 Refresh
-                </button>
-            </div>
-        </div>
-
-        <!-- Import/Export Toolbar -->
-        <div class="mb-6 bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-200 rounded-lg p-4">
-            <div class="flex flex-wrap justify-between items-center gap-4">
                 <div class="flex items-center space-x-2">
-                    <span class="text-sm font-semibold text-indigo-800">📦 Backup & Restore:</span>
-                    <button id="exportAllBtn" class="bg-indigo-500 text-white px-4 py-2 rounded-md hover:bg-indigo-600 transition duration-200 text-sm flex items-center gap-2">
+                    <button id="exportAllBtn" onclick="amneziaApp.exportAll()" class="bg-indigo-500 text-white px-3 py-1.5 rounded-md hover:bg-indigo-600 transition duration-200 text-sm flex items-center gap-1">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
                         </svg>
-                        Export All (Full Backup)
+                        Export All
                     </button>
-                    <button id="importBtn" class="bg-emerald-500 text-white px-4 py-2 rounded-md hover:bg-emerald-600 transition duration-200 text-sm flex items-center gap-2">
+                    <button id="importBtn" class="bg-emerald-500 text-white px-3 py-1.5 rounded-md hover:bg-emerald-600 transition duration-200 text-sm flex items-center gap-1">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
                         </svg>
-                        Import Configuration
+                        Import
                     </button>
                     <input type="file" id="importFileInput" accept=".json" class="hidden">
+                    <button id="refreshIpBtn" class="text-blue-500 hover:text-blue-700 text-sm">
+                        🔄 Refresh
+                    </button>
                 </div>
-                <div id="importStatus" class="text-sm hidden"></div>
             </div>
+            <div id="importStatus" class="mb-4 text-sm hidden"></div>
         </div>
 
         <!-- Server Creation Form (Collapsed by default) -->

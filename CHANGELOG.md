@@ -5,6 +5,9 @@
 - Added Export and import of the whole instance, server or a client. You can use it to backup server or to transfer configurations to another instance.
 > When transferring to another instance ports and IP subnets are preserved and have match on the source and destination.
 - New endpoints. Check [README.md](README.md).
+### Improvements
+- Removed `Download` button to save space on the main page as it duplicates functionality in the Config client modal page.
+- Renamed QR code button to `Config` which makes more sense.
 ### Fix
 - Fixed an issue when connected clients could access API without authentication (#84).
 

@@ -1,8 +1,21 @@
 # CHANGELOG
 
+## Version 1.9.1
+### New Features
+- Added Export and import of the whole instance, server or a client. You can use it to backup server or to transfer configurations to another instance.
+> When transferring to another instance ports and IP subnets are preserved and have match on the source and destination.
+- New endpoints. Check [README.md](README.md).
+### Improvements
+- Removed `Download` button to save space on the main page as it duplicates functionality in the Config client modal page.
+- Renamed QR code button to `Config` which makes more sense.
+### Fix
+- Fixed an issue when connected clients could access API without authentication (#84).
+
 ## Version 1.9.0
 ### New Features
 - AWG 3.1 support (#76)
+
+> You have to create a new server to use this functionality.
 
 In AWG 3.1 these four parameters accept either a single fixed integer or a randomized numeric range specified as min-max.
 They are local "client-side" parameters—meaning they do not have to match on both ends of the tunnel. Each side selects a random number from the specified range whenever it runs its timer, effectively disrupting statistical behavior tracking by Deep Packet Inspection (DPI).

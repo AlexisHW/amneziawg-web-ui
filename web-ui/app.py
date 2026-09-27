@@ -1330,6 +1330,308 @@ PersistentKeepalive = 25
         
         socketio.start_background_task(update_traffic)
 
+    def export_server(self, server_id):
+        """Export a server with all its clients as a JSON structure"""
+        server = next((s for s in self.config['servers'] if s['id'] == server_id), None)
+        if not server:
+            return None
+
+        # Create a clean export without runtime-only fields
+        export_data = {
+            "export_version": "1.0",
+            "export_type": "server_with_clients",
+            "exported_at": time.time(),
+            "server": {
+                "name": server["name"],
+                "port": server["port"],
+                "subnet": server["subnet"],
+                "mtu": server["mtu"],
+                "public_ip": server.get("public_ip", ""),
+                "endpoint": server.get("endpoint", ""),
+                "obfuscation_enabled": server.get("obfuscation_enabled", True),
+                "awg2_enabled": server.get("awg2_enabled", False),
+                "awg3_enabled": server.get("awg3_enabled", False),
+                "obfuscation_params": server.get("obfuscation_params"),
+                "auto_start": server.get("auto_start", True),
+                "dns": server.get("dns", DNS_SERVERS),
+                "server_private_key": server.get("server_private_key", ""),
+                "server_public_key": server.get("server_public_key", ""),
+                "server_ip": server.get("server_ip", ""),
+                "unbound_nat_ips": server.get("unbound_nat_ips", []),
+            },
+            "clients": []
+        }
+
+        # Export each client
+        for client in server.get("clients", []):
+            client_export = {
+                "name": client["name"],
+                "client_ip": client["client_ip"],
+                "client_private_key": client.get("client_private_key", ""),
+                "client_public_key": client.get("client_public_key", ""),
+                "preshared_key": client.get("preshared_key", ""),
+                "obfuscation_enabled": client.get("obfuscation_enabled", False),
+                "obfuscation_params": client.get("obfuscation_params"),
+                "apply_i_settings": client.get("apply_i_settings", False),
+                "i_settings": client.get("i_settings", {}),
+                "awg2_enabled": client.get("awg2_enabled", False),
+                "awg3_enabled": client.get("awg3_enabled", False),
+                "allowed_ips": client.get("allowed_ips", "0.0.0.0/0, ::/0"),
+                "status": client.get("status", "active"),
+                "created_at": client.get("created_at", time.time()),
+            }
+            export_data["clients"].append(client_export)
+
+        return export_data
+
+
+    def export_client(self, server_id, client_id):
+        """Export a single client as a JSON structure"""
+        server = next((s for s in self.config['servers'] if s['id'] == server_id), None)
+        if not server:
+            return None
+
+        client = next((c for c in server.get("clients", []) if c["id"] == client_id), None)
+        if not client:
+            return None
+
+        export_data = {
+            "export_version": "1.0",
+            "export_type": "single_client",
+            "exported_at": time.time(),
+            "server": {
+                "name": server["name"],
+                "port": server["port"],
+                "subnet": server["subnet"],
+                "mtu": server["mtu"],
+                "public_ip": server.get("public_ip", ""),
+                "endpoint": server.get("endpoint", ""),
+                "server_public_key": server.get("server_public_key", ""),
+                "obfuscation_enabled": server.get("obfuscation_enabled", True),
+                "awg2_enabled": server.get("awg2_enabled", False),
+                "awg3_enabled": server.get("awg3_enabled", False),
+                "dns": server.get("dns", DNS_SERVERS),
+            },
+            "client": {
+                "name": client["name"],
+                "client_ip": client["client_ip"],
+                "client_private_key": client.get("client_private_key", ""),
+                "client_public_key": client.get("client_public_key", ""),
+                "preshared_key": client.get("preshared_key", ""),
+                "obfuscation_enabled": client.get("obfuscation_enabled", False),
+                "obfuscation_params": client.get("obfuscation_params"),
+                "apply_i_settings": client.get("apply_i_settings", False),
+                "i_settings": client.get("i_settings", {}),
+                "awg2_enabled": client.get("awg2_enabled", False),
+                "awg3_enabled": client.get("awg3_enabled", False),
+                "allowed_ips": client.get("allowed_ips", "0.0.0.0/0, ::/0"),
+            }
+        }
+
+        return export_data
+
+
+    def export_all(self):
+        """Export the entire configuration (all servers with all clients)"""
+        export_data = {
+            "export_version": "1.0",
+            "export_type": "full_backup",
+            "exported_at": time.time(),
+            "app_version": APP_VERSION,
+            "servers": []
+        }
+
+        for server in self.config['servers']:
+            server_export = {
+                "name": server["name"],
+                "port": server["port"],
+                "subnet": server["subnet"],
+                "mtu": server["mtu"],
+                "public_ip": server.get("public_ip", ""),
+                "endpoint": server.get("endpoint", ""),
+                "obfuscation_enabled": server.get("obfuscation_enabled", True),
+                "awg2_enabled": server.get("awg2_enabled", False),
+                "awg3_enabled": server.get("awg3_enabled", False),
+                "obfuscation_params": server.get("obfuscation_params"),
+                "auto_start": server.get("auto_start", True),
+                "dns": server.get("dns", DNS_SERVERS),
+                "server_private_key": server.get("server_private_key", ""),
+                "server_public_key": server.get("server_public_key", ""),
+                "server_ip": server.get("server_ip", ""),
+                "unbound_nat_ips": server.get("unbound_nat_ips", []),
+                "clients": []
+            }
+
+            for client in server.get("clients", []):
+                client_export = {
+                    "name": client["name"],
+                    "client_ip": client["client_ip"],
+                    "client_private_key": client.get("client_private_key", ""),
+                    "client_public_key": client.get("client_public_key", ""),
+                    "preshared_key": client.get("preshared_key", ""),
+                    "obfuscation_enabled": client.get("obfuscation_enabled", False),
+                    "obfuscation_params": client.get("obfuscation_params"),
+                    "apply_i_settings": client.get("apply_i_settings", False),
+                    "i_settings": client.get("i_settings", {}),
+                    "awg2_enabled": client.get("awg2_enabled", False),
+                    "awg3_enabled": client.get("awg3_enabled", False),
+                    "allowed_ips": client.get("allowed_ips", "0.0.0.0/0, ::/0"),
+                    "status": client.get("status", "active"),
+                    "created_at": client.get("created_at", time.time()),
+                }
+                server_export["clients"].append(client_export)
+
+            export_data["servers"].append(server_export)
+
+        return export_data
+
+
+    def import_server(self, import_data, name_suffix=" (Imported)"):
+        """Import a server with its clients from exported data"""
+        if import_data.get("export_type") not in ("server_with_clients", "full_backup"):
+            raise ValueError("Invalid export type for server import")
+
+        server_data = import_data.get("server") or (import_data.get("servers", [{}])[0] if import_data.get("servers") else None)
+        if not server_data:
+            raise ValueError("No server data found in import file")
+
+        # Create server with a new name to avoid conflicts
+        server_name = server_data.get("name", "Imported Server") + name_suffix
+
+        # Build server creation data
+        create_data = {
+            "name": server_name,
+            "port": server_data.get("port", DEFAULT_PORT),
+            "subnet": server_data.get("subnet", DEFAULT_SUBNET),
+            "mtu": server_data.get("mtu", DEFAULT_MTU),
+            "dns": ",".join(server_data.get("dns", DNS_SERVERS)) if isinstance(server_data.get("dns"), list) else server_data.get("dns", DEFAULT_DNS),
+            "obfuscation": server_data.get("obfuscation_enabled", True),
+            "awg2": server_data.get("awg2_enabled", False),
+            "awg3": server_data.get("awg3_enabled", False),
+            "auto_start": False,  # Don't auto-start imported servers
+            "endpoint": server_data.get("endpoint", ""),
+        }
+
+        # Use existing obfuscation params if available, otherwise generate new ones
+        if server_data.get("obfuscation_params"):
+            create_data["obfuscation_params"] = server_data["obfuscation_params"]
+
+        # Create the server
+        new_server = self.create_wireguard_server(create_data)
+
+        # Import clients
+        clients_to_import = import_data.get("clients", [])
+        if import_data.get("export_type") == "full_backup":
+            # For full backup, find the right server's clients
+            for s in import_data.get("servers", []):
+                if s.get("name") == server_data.get("name"):
+                    clients_to_import = s.get("clients", [])
+                    break
+
+        for client_data in clients_to_import:
+            try:
+                self.import_client_to_server(new_server["id"], client_data)
+            except Exception as e:
+                print(f"Failed to import client {client_data.get('name')}: {e}")
+
+        return new_server
+
+
+    def import_client_to_server(self, server_id, client_data):
+        """Import a single client into an existing server"""
+        server = next((s for s in self.config['servers'] if s['id'] == server_id), None)
+        if not server:
+            raise ValueError("Server not found")
+
+        client_id = str(uuid.uuid4())[:6]
+
+        # Use provided keys if available, otherwise generate new ones
+        client_private_key = client_data.get("client_private_key")
+        client_public_key = client_data.get("client_public_key")
+        preshared_key = client_data.get("preshared_key")
+
+        if not client_private_key:
+            keys = self.generate_wireguard_keys()
+            client_private_key = keys["private_key"]
+            client_public_key = keys["public_key"]
+
+        if not preshared_key:
+            preshared_key = self.generate_preshared_key()
+
+        # Assign client IP - use provided or get new one
+        client_ip = client_data.get("client_ip")
+        if not client_ip or client_ip in [c["client_ip"] for c in server.get("clients", [])]:
+            client_ip = self.get_new_client_ip(server_id)
+            if not client_ip:
+                raise ValueError("No available IPs in subnet")
+
+        client_name = client_data.get("name", "Imported Client")
+
+        # Build client config
+        client_config = {
+            "id": client_id,
+            "name": client_name,
+            "server_id": server_id,
+            "server_name": server["name"],
+            "status": client_data.get("status", "active"),
+            "created_at": client_data.get("created_at", time.time()),
+            "client_private_key": client_private_key,
+            "client_public_key": client_public_key,
+            "preshared_key": preshared_key,
+            "client_ip": client_ip,
+            "obfuscation_enabled": client_data.get("obfuscation_enabled", server["obfuscation_enabled"]),
+            "obfuscation_params": client_data.get("obfuscation_params", server["obfuscation_params"]),
+            "apply_i_settings": client_data.get("apply_i_settings", False),
+            "i_settings": client_data.get("i_settings", {}),
+            "awg2_enabled": client_data.get("awg2_enabled", server.get("awg2_enabled", False)),
+            "awg3_enabled": client_data.get("awg3_enabled", server.get("awg3_enabled", False)),
+            "allowed_ips": client_data.get("allowed_ips", "0.0.0.0/0, ::/0"),
+        }
+
+        # Add client peer to server config
+        client_peer_config = f"""
+    # Client: {client_config['name']}
+    [Peer]
+    PublicKey = {client_public_key}
+    PresharedKey = {preshared_key}
+    AllowedIPs = {client_ip}/32
+    """
+
+        with open(server['config_path'], 'a') as f:
+            f.write(client_peer_config)
+
+        server["clients"].append(client_config)
+        self.config["clients"][client_id] = client_config.copy()
+        self.save_config()
+
+        # Apply live config if server is running
+        if server['status'] == 'running':
+            self.apply_live_config(server['interface'])
+
+        return client_config
+
+
+    def import_full_backup(self, import_data):
+        """Import all servers from a full backup"""
+        if import_data.get("export_type") != "full_backup":
+            raise ValueError("Not a full backup file")
+
+        imported_servers = []
+        for server_data in import_data.get("servers", []):
+            try:
+                # Create a temporary import structure for this server
+                temp_import = {
+                    "export_type": "server_with_clients",
+                    "server": server_data,
+                    "clients": server_data.get("clients", [])
+                }
+                new_server = self.import_server(temp_import, name_suffix=" (Restored)")
+                imported_servers.append(new_server["name"])
+            except Exception as e:
+                print(f"Failed to import server {server_data.get('name')}: {e}")
+
+        return imported_servers
+
 amnezia_manager = AmneziaManager()
 
 # API Routes
@@ -1848,6 +2150,176 @@ def get_uptime():
     uptime = get_container_uptime()
     return jsonify({'uptime': uptime})
 
+@app.route('/api/servers/<server_id>/export', methods=['GET'])
+def export_server_route(server_id):
+    """Export a server with all its clients"""
+    export_data = amnezia_manager.export_server(server_id)
+    if not export_data:
+        return jsonify({"error": "Server not found"}), 404
+
+    server = next((s for s in amnezia_manager.config['servers'] if s['id'] == server_id), None)
+    if server is None:
+        return jsonify({"error": "Server not found"}), 404
+
+    filename = f"awg-server-{server['name'].replace(' ', '-')}-{int(time.time())}.json"
+
+    temp_file = tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False, encoding='utf-8')
+    json.dump(export_data, temp_file, indent=2, ensure_ascii=False)
+    temp_file.close()
+
+    return send_file(
+        temp_file.name,
+        mimetype='application/json',
+        as_attachment=True,
+        download_name=filename
+    )
+
+
+@app.route('/api/servers/<server_id>/clients/<client_id>/export', methods=['GET'])
+def export_client_route(server_id, client_id):
+    """Export a single client"""
+    export_data = amnezia_manager.export_client(server_id, client_id)
+    if not export_data:
+        return jsonify({"error": "Server or client not found"}), 404
+
+    client_name = export_data["client"]["name"].replace(' ', '-')
+    filename = f"awg-client-{client_name}-{int(time.time())}.json"
+
+    temp_file = tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False, encoding='utf-8')
+    json.dump(export_data, temp_file, indent=2, ensure_ascii=False)
+    temp_file.close()
+
+    return send_file(
+        temp_file.name,
+        mimetype='application/json',
+        as_attachment=True,
+        download_name=filename
+    )
+
+
+@app.route('/api/export/all', methods=['GET'])
+def export_all_route():
+    """Export the entire configuration as a backup"""
+    export_data = amnezia_manager.export_all()
+
+    filename = f"awg-full-backup-{int(time.time())}.json"
+
+    temp_file = tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False, encoding='utf-8')
+    json.dump(export_data, temp_file, indent=2, ensure_ascii=False)
+    temp_file.close()
+
+    return send_file(
+        temp_file.name,
+        mimetype='application/json',
+        as_attachment=True,
+        download_name=filename
+    )
+
+
+@app.route('/api/import', methods=['POST'])
+def import_config_route():
+    """Import configuration from uploaded file"""
+    if 'file' not in request.files:
+        return jsonify({"error": "No file provided"}), 400
+
+    file = request.files['file']
+    if not file.filename:
+        return jsonify({"error": "No file selected"}), 400
+
+    if not file.filename.endswith('.json'):
+        return jsonify({"error": "Only JSON files are supported"}), 400
+
+    try:
+        content = file.read()
+        if isinstance(content, bytes):
+            content = content.decode('utf-8')
+        import_data = json.loads(content)
+    except (json.JSONDecodeError, UnicodeDecodeError) as e:
+        return jsonify({"error": f"Invalid JSON: {str(e)}"}), 400
+
+    export_type = import_data.get("export_type")
+
+    try:
+        if export_type == "full_backup":
+            imported = amnezia_manager.import_full_backup(import_data)
+            return jsonify({
+                "success": True,
+                "message": f"Imported {len(imported)} server(s)",
+                "imported_servers": imported
+            })
+        elif export_type == "server_with_clients":
+            new_server = amnezia_manager.import_server(import_data)
+            return jsonify({
+                "success": True,
+                "message": f"Imported server '{new_server['name']}' with {len(new_server.get('clients', []))} client(s)",
+                "server": {"id": new_server["id"], "name": new_server["name"]}
+            })
+        elif export_type == "single_client":
+            target_server_id = request.form.get('server_id')
+            if not target_server_id:
+                return jsonify({"error": "server_id is required for single client import"}), 400
+
+            client_data = import_data.get("client", {})
+            new_client = amnezia_manager.import_client_to_server(target_server_id, client_data)
+            return jsonify({
+                "success": True,
+                "message": f"Imported client '{new_client['name']}'",
+                "client": {"id": new_client["id"], "name": new_client["name"]}
+            })
+        else:
+            return jsonify({"error": f"Unknown export type: {export_type}"}), 400
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+    except Exception as e:
+        return jsonify({"error": f"Import failed: {str(e)}"}), 500
+
+
+@app.route('/api/import/client/<server_id>', methods=['POST'])
+def import_client_to_server_route(server_id):
+    """Import a single client into a specific server"""
+    if 'file' not in request.files:
+        return jsonify({"error": "No file provided"}), 400
+
+    file = request.files['file']
+    if not file.filename:
+        return jsonify({"error": "No file selected"}), 400
+
+    try:
+        content = file.read()
+        if isinstance(content, bytes):
+            content = content.decode('utf-8')
+        import_data = json.loads(content)
+    except (json.JSONDecodeError, UnicodeDecodeError) as e:
+        return jsonify({"error": f"Invalid JSON: {str(e)}"}), 400
+
+    try:
+        if import_data.get("export_type") == "single_client":
+            client_data = import_data.get("client", {})
+        elif import_data.get("export_type") == "server_with_clients":
+            clients = import_data.get("clients", [])
+            imported = []
+            for client_data in clients:
+                new_client = amnezia_manager.import_client_to_server(server_id, client_data)
+                imported.append(new_client["name"])
+            return jsonify({
+                "success": True,
+                "message": f"Imported {len(imported)} client(s)",
+                "imported_clients": imported
+            })
+        else:
+            return jsonify({"error": "Invalid file type for client import"}), 400
+
+        new_client = amnezia_manager.import_client_to_server(server_id, client_data)
+        return jsonify({
+            "success": True,
+            "message": f"Imported client '{new_client['name']}'",
+            "client": {"id": new_client["id"], "name": new_client["name"]}
+        })
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+    except Exception as e:
+        return jsonify({"error": f"Import failed: {str(e)}"}), 500
+
 @socketio.on('connect')
 def handle_connect():
     print(f"WebSocket connected from {request.remote_addr}")
@@ -1893,4 +2365,4 @@ if __name__ == '__main__':
     if AUTO_START_SERVERS:
         print("Auto-starting existing servers...")
 
-    socketio.run(app, host='0.0.0.0', port=WEB_UI_PORT, debug=False, allow_unsafe_werkzeug=True)
+    socketio.run(app, host='127.0.0.1', port=WEB_UI_PORT, debug=False, allow_unsafe_werkzeug=True)

@@ -173,9 +173,20 @@ Content-Type: application/json
 
 `GET /api/system/iptables-test?server_id=wg_abc123`
 
-### Export Configuration
+#### Full backup
+`GET	/api/export/all`
 
-`GET /api/config/export`
+#### Export for a single server with all it's clients
+`GET	/api/servers/<server_id>/export`
+
+#### Export of a single cleint
+`GET	/api/servers/<server_id>/clients/<client_id>/export`
+
+#### Import of the full configuration
+`POST	/api/import`
+
+#### Import of a client to a server
+`POST	/api/import/client/<server_id>`
 
 ## 🐳 Docker Deployment
 
@@ -385,11 +396,28 @@ AmneziaWG supports advanced traffic obfuscation to bypass censorship and DPI (De
 `docker exec amnezia-web-ui tail -f /var/log/supervisor/supervisord.log`
 
 ## 🔄 Backup and Restore
-Export Configuration
 
-### Export all configuration via API
+### Export configuration via API
 
-`curl http://localhost/api/config/export > amnezia_backup.json`
+`curl -sS -o "awg-backup-$(date +%Y%m%d-%H%M%S).json" http://localhost/api/export/all`
+
+```SERVER_ID="a1b2c3"
+curl -sS -o "awg-server-${SERVER_ID}.json" "http://localhost/api/servers/${SERVER_ID}/export"
+```
+
+```SERVER_ID="a1b2c3"
+CLIENT_ID="d4e5f6"
+curl -sS -o "awg-client-${CLIENT_ID}.json" "http://localhost/api/servers/${SERVER_ID}/clients/${CLIENT_ID}/export"
+```
+
+### Restore from backup
+`curl -sS -X POST http://localhost/api/import -F "file=@awg-backup-20260927-120000.json"`
+
+`curl -sS -X POST http://localhost/api/import -F "file=@awg-server-a1b2c3.json"`
+
+```TARGET_SERVER_ID="a1b2c3"
+curl -sS -X POST "http://localhost/api/import/client/${TARGET_SERVER_ID}" -F "file=@awg-client-d4e5f6.json"
+```
 
 ### Backup configuration directory
 

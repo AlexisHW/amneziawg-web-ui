@@ -2151,14 +2151,16 @@ def get_uptime():
     return jsonify({'uptime': uptime})
 
 @app.route('/api/servers/<server_id>/export', methods=['GET'])
-def export_server(server_id):
+def export_server_route(server_id):
     """Export a server with all its clients"""
-    export_data = manager.export_server(server_id)
+    export_data = amnezia_manager.export_server(server_id)
     if not export_data:
         return jsonify({"error": "Server not found"}), 404
 
-    # Create a temporary file
-    server = next((s for s in manager.config['servers'] if s['id'] == server_id), None)
+    server = next((s for s in amnezia_manager.config['servers'] if s['id'] == server_id), None)
+    if server is None:
+        return jsonify({"error": "Server not found"}), 404
+
     filename = f"awg-server-{server['name'].replace(' ', '-')}-{int(time.time())}.json"
 
     temp_file = tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False, encoding='utf-8')
@@ -2174,9 +2176,9 @@ def export_server(server_id):
 
 
 @app.route('/api/servers/<server_id>/clients/<client_id>/export', methods=['GET'])
-def export_client(server_id, client_id):
+def export_client_route(server_id, client_id):
     """Export a single client"""
-    export_data = manager.export_client(server_id, client_id)
+    export_data = amnezia_manager.export_client(server_id, client_id)
     if not export_data:
         return jsonify({"error": "Server or client not found"}), 404
 
@@ -2196,9 +2198,9 @@ def export_client(server_id, client_id):
 
 
 @app.route('/api/export/all', methods=['GET'])
-def export_all():
+def export_all_route():
     """Export the entire configuration as a backup"""
-    export_data = manager.export_all()
+    export_data = amnezia_manager.export_all()
 
     filename = f"awg-full-backup-{int(time.time())}.json"
 
@@ -2215,7 +2217,7 @@ def export_all():
 
 
 @app.route('/api/import', methods=['POST'])
-def import_config():
+def import_config_route():
     """Import configuration from uploaded file"""
     if 'file' not in request.files:
         return jsonify({"error": "No file provided"}), 400
@@ -2228,35 +2230,37 @@ def import_config():
         return jsonify({"error": "Only JSON files are supported"}), 400
 
     try:
-        import_data = json.load(file)
-    except json.JSONDecodeError as e:
+        content = file.read()
+        if isinstance(content, bytes):
+            content = content.decode('utf-8')
+        import_data = json.loads(content)
+    except (json.JSONDecodeError, UnicodeDecodeError) as e:
         return jsonify({"error": f"Invalid JSON: {str(e)}"}), 400
 
     export_type = import_data.get("export_type")
 
     try:
         if export_type == "full_backup":
-            imported = manager.import_full_backup(import_data)
+            imported = amnezia_manager.import_full_backup(import_data)
             return jsonify({
                 "success": True,
                 "message": f"Imported {len(imported)} server(s)",
                 "imported_servers": imported
             })
         elif export_type == "server_with_clients":
-            new_server = manager.import_server(import_data)
+            new_server = amnezia_manager.import_server(import_data)
             return jsonify({
                 "success": True,
                 "message": f"Imported server '{new_server['name']}' with {len(new_server.get('clients', []))} client(s)",
                 "server": {"id": new_server["id"], "name": new_server["name"]}
             })
         elif export_type == "single_client":
-            # Need to specify which server to import into
             target_server_id = request.form.get('server_id')
             if not target_server_id:
                 return jsonify({"error": "server_id is required for single client import"}), 400
 
             client_data = import_data.get("client", {})
-            new_client = manager.import_client_to_server(target_server_id, client_data)
+            new_client = amnezia_manager.import_client_to_server(target_server_id, client_data)
             return jsonify({
                 "success": True,
                 "message": f"Imported client '{new_client['name']}'",
@@ -2271,7 +2275,7 @@ def import_config():
 
 
 @app.route('/api/import/client/<server_id>', methods=['POST'])
-def import_client_to_server(server_id):
+def import_client_to_server_route(server_id):
     """Import a single client into a specific server"""
     if 'file' not in request.files:
         return jsonify({"error": "No file provided"}), 400
@@ -2281,19 +2285,21 @@ def import_client_to_server(server_id):
         return jsonify({"error": "No file selected"}), 400
 
     try:
-        import_data = json.load(file)
-    except json.JSONDecodeError as e:
+        content = file.read()
+        if isinstance(content, bytes):
+            content = content.decode('utf-8')
+        import_data = json.loads(content)
+    except (json.JSONDecodeError, UnicodeDecodeError) as e:
         return jsonify({"error": f"Invalid JSON: {str(e)}"}), 400
 
     try:
         if import_data.get("export_type") == "single_client":
             client_data = import_data.get("client", {})
         elif import_data.get("export_type") == "server_with_clients":
-            # If importing a full server export, just import the clients
             clients = import_data.get("clients", [])
             imported = []
             for client_data in clients:
-                new_client = manager.import_client_to_server(server_id, client_data)
+                new_client = amnezia_manager.import_client_to_server(server_id, client_data)
                 imported.append(new_client["name"])
             return jsonify({
                 "success": True,
@@ -2303,7 +2309,7 @@ def import_client_to_server(server_id):
         else:
             return jsonify({"error": "Invalid file type for client import"}), 400
 
-        new_client = manager.import_client_to_server(server_id, client_data)
+        new_client = amnezia_manager.import_client_to_server(server_id, client_data)
         return jsonify({
             "success": True,
             "message": f"Imported client '{new_client['name']}'",

@@ -191,6 +191,8 @@ Content-Type: application/json
 ## 🐳 Docker Deployment
 
 Official docker image repository: https://hub.docker.com/r/alexishw/amneziawg-web-ui
+> [!IMPORTANT]
+> You have to delete `amneziawg-linux-kernel-module` from host before installation of this panel.
 
 ### Environment Variables
 

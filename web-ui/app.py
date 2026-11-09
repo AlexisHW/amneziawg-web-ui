@@ -57,6 +57,8 @@ DEFAULT_DNS = os.getenv('DEFAULT_DNS', '8.8.8.8,1.1.1.1')
 APP_VERSION = os.getenv('APP_VERSION', '1.0.0')
 # Loopback by default so VPN clients can't reach the unauthenticated API (#84)
 WEB_UI_HOST = os.getenv('WEB_UI_HOST', '127.0.0.1')
+# Optional source-address allowlist, for when WEB_UI_HOST isn't loopback
+WEB_UI_ALLOWED_SUBNETS = [ipaddress.ip_network(s.strip()) for s in os.getenv('WEB_UI_ALLOWED_SUBNETS', '').split(',') if s.strip()]
 
 # Parse DNS servers from comma-separated string
 DNS_SERVERS = [dns.strip() for dns in DEFAULT_DNS.split(',') if dns.strip()]
@@ -88,6 +90,7 @@ print(f"DEFAULT_PORT: {DEFAULT_PORT}")
 print(f"DEFAULT_DNS: {DEFAULT_DNS}")
 print(f"DNS_SERVERS: {DNS_SERVERS}")
 print(f"WEB_UI_HOST: {WEB_UI_HOST}")
+print(f"WEB_UI_ALLOWED_SUBNETS: {WEB_UI_ALLOWED_SUBNETS or 'any'}")
 print("==================================")
 print("Fixed Configuration:")
 print(f"WEB_UI_PORT: {WEB_UI_PORT} (internal)")
@@ -118,6 +121,26 @@ socketio = SocketIO(
     allow_upgrades=True,
     http_compression=True
 )
+
+def is_allowed_client(remote_addr):
+    try:
+        addr = ipaddress.ip_address(remote_addr)
+    except ValueError:
+        return False
+    addr = getattr(addr, 'ipv4_mapped', None) or addr
+    return any(addr in net for net in WEB_UI_ALLOWED_SUBNETS)
+
+def restrict_clients(wsgi_app):
+    def middleware(environ, start_response):
+        if is_allowed_client(environ.get('REMOTE_ADDR', '')):
+            return wsgi_app(environ, start_response)
+        start_response('403 Forbidden', [('Content-Type', 'text/plain')])
+        return [b'Forbidden']
+    return middleware
+
+# Wraps the Socket.IO middleware too, so WebSocket connections are covered
+if WEB_UI_ALLOWED_SUBNETS:
+    app.wsgi_app = restrict_clients(app.wsgi_app)
 
 class AmneziaManager:
     def __init__(self):

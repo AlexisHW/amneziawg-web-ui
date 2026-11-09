@@ -202,6 +202,7 @@ Official docker image repository: https://hub.docker.com/r/alexishw/amneziawg-we
 | `NGINX_USER` | `admin` | Username for basic auth in the app |
 | `NGINX_PASSWORD` | `changeme` | Password for basic auth in the app |
 | `AUTO_START_SERVERS` | `true` | Auto-start servers on container startup |
+| `WEB_UI_HOST` | `127.0.0.1` | Bind address of the internal web UI (port 5000). Only change it when running `app.py` without the bundled nginx; a non-loopback address is reachable by VPN clients, so restrict access to it yourself. |
 | `DEFAULT_MTU` | `1280` | Default MTU value for new servers. Effective only for api requests. For UI management set via UI. |
 | `DEFAULT_SUBNET` | `10.0.0.0/24` | Default subnet for new servers. Effective only for api requests. For UI management set via UI. |
 | `DEFAULT_PORT` | `51820` | Default port for new servers. Effective only for api requests. For UI management set via UI. |

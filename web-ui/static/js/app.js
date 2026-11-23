@@ -111,6 +111,9 @@ class AmneziaApp {
         if (awg3Checkbox) {
             awg3Checkbox.addEventListener('change', (e) => {
                 this.toggleAwg3Fields(e.target.checked);
+                // Re-evaluate S3/S4 visibility (they are shared with AWG 2.0)
+                const awg2Checked = this.getElement('enableAwg2')?.checked || false;
+                this.toggleAwg2Fields(awg2Checked);
             });
             this.toggleAwg3Fields(awg3Checkbox.checked);
         }
@@ -169,11 +172,15 @@ class AmneziaApp {
     }
 
     toggleAwg2Fields(show) {
+        // S3/S4 are used by both AWG 2.0 and AWG 3.1 —
+        // show them if either checkbox is enabled.
+        const awg3 = this.getElement('enableAwg3')?.checked || false;
+        const visible = show || awg3;
+
         const s3Field = document.getElementById('awg2FieldS3');
         const s4Field = document.getElementById('awg2FieldS4');
-        
-        if (s3Field) s3Field.style.display = show ? 'block' : 'none';
-        if (s4Field) s4Field.style.display = show ? 'block' : 'none';
+        if (s3Field) s3Field.style.display = visible ? 'block' : 'none';
+        if (s4Field) s4Field.style.display = visible ? 'block' : 'none';
     }
 
     toggleAwg3Fields(show) {
@@ -420,8 +427,8 @@ class AmneziaApp {
         if (jcElement) jcElement.value = Math.floor(Math.random() * 9) + 4; // 4-12
         if (s1Element) s1Element.value = Math.floor(Math.random() * 136) + 15; // 15-150
         if (s2Element) s2Element.value = Math.floor(Math.random() * 136) + 15; // 15-150
-        if (s3Element) s3Element.value = Math.floor(Math.random() * 256) + 1; // 1-256
-        if (s4Element) s4Element.value = Math.floor(Math.random() * 32) + 1; // 1-32
+        if (s3Element) s3Element.value = Math.floor(Math.random() * (256 - 12 + 1)) + 12; // 12-256
+        if (s4Element) s4Element.value = Math.floor(Math.random() * (32 - 12 + 1)) + 12;  // 12-32
         
         // Generate unique H values
         const hValues = new Set();
@@ -472,8 +479,14 @@ class AmneziaApp {
         if (params.S1 + 56 === params.S2) {
             errors.push(`S1 + 56 (${params.S1 + 56}) must not equal S2 (${params.S2})`);
         }
+        if (params.S3 !== undefined && params.S3 < 12) {
+            errors.push(`S3 (${params.S3}) must be at least 12`);
+        }
+        if (params.S4 !== undefined && params.S4 < 12) {
+            errors.push(`S4 (${params.S4}) must be at least 12`);
+        }
         if (params.S4 > 32) {
-            errors.push(`S4 (${params.S4}) must be in range [0, 32]`);
+            errors.push(`S4 (${params.S4}) must be in range [12, 32]`);
         }
 
         return errors;
@@ -624,7 +637,8 @@ class AmneziaApp {
             awg2: awg2Element ? awg2Element.checked : true,
             auto_start: autoStartElement ? autoStartElement.checked : true,
             endpoint: endpointElement ? endpointElement.value.trim() : '',
-            awg3: awg3Element ? awg3Element.checked : true
+            awg3: awg3Element ? awg3Element.checked : true,
+            disable_cookies: this.getElement('paramDisableCookies')?.checked || false
         };
 
         console.log("Form data:", formData);
@@ -666,7 +680,7 @@ class AmneziaApp {
                 Object.assign(formData.obfuscation_params, {
                     HeaderProtectionKey:     this.getElement('paramHeaderProtectionKey')?.value || '',
                     ContentPaddingAddition:  this.getElement('paramContentPaddingAddition')?.value || '10-50',
-                    RandomTrailers:          this.getElement('paramRandomTrailers')?.checked ? 1 : 0,
+                    RandomTrailers:          this.getElement('paramRandomTrailers')?.checked ? 'on' : 'off',
                     RekeyAfterTime:          this.getElement('paramRekeyAfterTime')?.value || '1200-1800',
                     RekeyTimeout:            this.getElement('paramRekeyTimeout')?.value || '10-25',
                     KeepaliveTimeout:        this.getElement('paramKeepaliveTimeout')?.value || '20-40',
@@ -784,7 +798,8 @@ class AmneziaApp {
             <div class="bg-white rounded-lg shadow-md p-6" data-server-id="${server.id}">
                 <div class="flex justify-between items-center mb-4">
                     <div>
-                        <h3 class="text-lg font-semibold">${server.name}</h3>
+                        <h3 class="text-lg font-semibold cursor-pointer select-none w-full" data-server-id="${server.id}"
+                            onclick="amneziaApp.toggleServerCard(this.dataset.serverId)">${server.name}</h3>
                         <p class="text-sm text-gray-600">
                             ID: ${server.id} | Port: ${server.port} | Subnet: ${server.subnet}
                             ${server.obfuscation_enabled ? '| 🔒 Obfuscated' : ''}
@@ -800,33 +815,41 @@ class AmneziaApp {
                         <button onclick="amneziaApp.deleteServer('${server.id}')" class="text-red-500 hover:text-red-700">
                             🗑️ Delete
                         </button>
+                        <button onclick="amneziaApp.toggleServerCard('${server.id}')"
+                                class="text-gray-500 hover:text-gray-700 p-1 rounded"
+                                title="Collapse/Expand">
+                            <span data-toggle-icon="${server.id}" class="text-2xl leading-none">▼</span>
+                        </button>
                     </div>
                 </div>
-                <div class="space-x-2 mb-4">
-                    <button onclick="amneziaApp.startServer('${server.id}')" class="bg-green-500 text-white px-3 py-1 rounded hover:bg-green-600">
-                        Start
-                    </button>
-                    <button onclick="amneziaApp.stopServer('${server.id}')" class="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600">
-                        Stop
-                    </button>
-                    <button onclick="amneziaApp.addClient('${server.id}')" class="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600">
-                        Add Client
-                    </button>
-                    <button onclick="amneziaApp.showServerConfig('${server.id}')" class="bg-purple-500 text-white px-3 py-1 rounded hover:bg-purple-600">
-                        Show Config
-                    </button>
-                    <button onclick="amneziaApp.exportServer('${server.id}')" class="bg-indigo-500 text-white px-3 py-1 rounded hover:bg-indigo-600">
-                        📤 Export Server
-                    </button>
-                    <button onclick="amneziaApp.importClientToServer('${server.id}')" class="bg-teal-500 text-white px-3 py-1 rounded hover:bg-teal-600">
-                        📥 Import Client
-                    </button>
-                </div>
-                <div id="clients-${server.id}">
-                    ${this.renderServerClients(server.id, server.clients || [])}
+                <div class="server-card-body" data-server-body="${server.id}">
+                    <div class="space-x-2 mb-4">
+                        <button onclick="amneziaApp.startServer('${server.id}')" class="bg-green-500 text-white px-3 py-1 rounded hover:bg-green-600">
+                            Start
+                        </button>
+                        <button onclick="amneziaApp.stopServer('${server.id}')" class="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600">
+                            Stop
+                        </button>
+                        <button onclick="amneziaApp.addClient('${server.id}')" class="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600">
+                            Add Client
+                        </button>
+                        <button onclick="amneziaApp.showServerConfig('${server.id}')" class="bg-purple-500 text-white px-3 py-1 rounded hover:bg-purple-600">
+                            Show Config
+                        </button>
+                        <button onclick="amneziaApp.exportServer('${server.id}')" class="bg-indigo-500 text-white px-3 py-1 rounded hover:bg-indigo-600">
+                            📤 Export Server
+                        </button>
+                        <button onclick="amneziaApp.importClientToServer('${server.id}')" class="bg-teal-500 text-white px-3 py-1 rounded hover:bg-teal-600">
+                            📥 Import Client
+                        </button>
+                    </div>
+                    <div id="clients-${server.id}">
+                        ${this.renderServerClients(server.id, server.clients || [])}
+                    </div>
                 </div>
             </div>
         `).join('');
+        this.applyCollapsedState();
 
         // Load clients for each server
         servers.forEach(server => {
@@ -939,7 +962,7 @@ class AmneziaApp {
                                     <div><span class="font-medium">Port:</span> ${serverInfo.port}</div>
                                     <div><span class="font-medium">Subnet:</span> ${serverInfo.subnet}</div>
                                     <div><span class="font-medium">Server IP:</span> ${serverInfo.server_ip}</div>
-                                    <div><span class="font-medium">Public IP:</span> ${serverInfo.public_ip}</div>
+                                    <div><span class="font-medium">Public IP / Endpoint:</span> ${serverInfo.endpoint || serverInfo.public_ip}</div>
                                     <div><span class="font-medium">Status:</span>
                                         <span class="px-2 py-1 rounded-full text-xs ${
                                             serverInfo.status === 'running' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
@@ -966,31 +989,41 @@ class AmneziaApp {
                         ${serverInfo.obfuscation_enabled ? `
                         <div class="bg-blue-50 p-3 rounded mb-4">
                             <h4 class="font-semibold text-sm text-blue-700 mb-2">Obfuscation Parameters</h4>
-                            <div class="grid grid-cols-3 md:grid-cols-6 gap-2 text-xs">
-                                ${Object.entries(serverInfo.obfuscation_params).map(([key, value]) => `
-                                    <div class="text-center">
-                                        <div class="font-medium">${key}</div>
-                                        <div class="font-mono">${value}</div>
-                                    </div>
-                                `).join('')}
+                            <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2 text-xs">
+                                ${Object.entries(serverInfo.obfuscation_params).map(([key, value]) => {
+                                    const isLong = typeof value === 'string' && value.length > 20;
+                                    return `
+                                        <div class="text-center ${isLong ? 'col-span-2 sm:col-span-3 md:col-span-6' : ''}">
+                                            <div class="font-medium">${key}</div>
+                                            <div class="font-mono break-all ${isLong ? 'text-left' : ''}"
+                                                title="${value}">${value}</div>
+                                        </div>
+                                    `;
+                                }).join('')}
                             </div>
+                            ${serverInfo.disable_cookies ? `
+                            <div class="text-xs mt-1">
+                                <span class="font-medium">DisableCookies:</span> <span class="font-mono">1</span>
+                            </div>` : ''}
                         </div>
                         ` : ''}
 
                         ${serverInfo.default_i_settings ? `
                         <div class="bg-purple-50 p-3 rounded mb-4">
                             <h4 class="font-semibold text-sm text-purple-700 mb-2">Default I-settings (AmneziaWG 1.5)</h4>
-                            <div class="grid grid-cols-2 md:grid-cols-5 gap-2 text-xs">
-                                ${Object.entries(serverInfo.default_i_settings).map(([key, value]) => `
-                                    <div class="text-center">
-                                        <div class="font-medium">${key}</div>
-                                        <div class="font-mono truncate" title="${value}">
-                                            ${value ? value.substring(0, 20) + '...' : 'empty'}
-                                        </div>
-                                    </div>
-                                `).join('')}
+                            <div class="text-xs space-y-1">
+                                <div class="flex items-start gap-2">
+                                    <span class="font-medium shrink-0">I1:</span>
+                                    <span class="font-mono break-all text-purple-800"
+                                        title="${serverInfo.default_i_settings.i1 || ''}">
+                                        ${serverInfo.default_i_settings.i1 || 'empty'}
+                                    </span>
+                                </div>
+                                <div class="flex items-start gap-2">
+                                    <span class="font-medium shrink-0">I2–I5: <span class="font-mono">empty</span> (no default)</span>
+                                </div>
                             </div>
-                            <p class="text-xs text-purple-600 mt-2">
+                            <p class="text-xs mt-2">
                                 These defaults are used for new clients when "Apply I-settings" is enabled.
                             </p>
                         </div>
@@ -1077,6 +1110,40 @@ class AmneziaApp {
         }
     }
 
+    // Server display methods
+    getCollapsedState() {
+        try {
+            return JSON.parse(localStorage.getItem('collapsedServers') || '{}');
+        } catch { return {}; }
+    }
+
+    setCollapsedState(state) {
+        localStorage.setItem('collapsedServers', JSON.stringify(state));
+    }
+
+    toggleServerCard(serverId) {
+        const body = document.querySelector(`[data-server-body="${serverId}"]`);
+        const icon = document.querySelector(`[data-toggle-icon="${serverId}"]`);
+        if (!body) return;
+
+        const collapsed = body.classList.toggle('hidden');
+        if (icon) icon.textContent = collapsed ? '▲' : '▼';
+
+        const state = this.getCollapsedState();
+        if (collapsed) state[serverId] = true; else delete state[serverId];
+        this.setCollapsedState(state);
+    }
+
+    applyCollapsedState() {
+        const state = this.getCollapsedState();
+        for (const serverId of Object.keys(state)) {
+            const body = document.querySelector(`[data-server-body="${serverId}"]`);
+            const icon = document.querySelector(`[data-toggle-icon="${serverId}"]`);
+            if (body) body.classList.add('hidden');
+            if (icon) icon.textContent = '▲';
+        }
+    }
+
     // ============ CLIENT METHODS ============
 
     renderServerClients(serverId, clients, traffic = {}) {
@@ -1148,6 +1215,14 @@ class AmneziaApp {
                             </div>
                         </div>
                         <div class="flex space-x-2">
+                            <button onclick="event.stopPropagation(); amneziaApp.downloadClientConfig('${serverId}', '${client.id}')"
+                                    class="bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white p-1.5 rounded-lg transition-all duration-200 shadow hover:shadow-md flex items-center"
+                                    title="Download Config">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3"/>
+                                </svg>
+                            </button>
                             <button onclick="amneziaApp.editClient('${serverId}', '${client.id}')"
                                     class="bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 shadow hover:shadow-md flex items-center"
                                     title="Edit Client">
@@ -1347,6 +1422,22 @@ class AmneziaApp {
                                 Leave empty to disable auto-suspension (still need to activate client after suspension).
                             </p>
                             ` : ''}
+
+                            <div class="mt-3">
+                                <div class="text-sm font-medium mb-1">DisableCookies (AWG 3.1):</div>
+                                <label class="inline-flex items-center mr-3 text-sm">
+                                    <input type="radio" name="editClientDisableCookies" value="inherit" class="mr-1">
+                                    Inherit from server
+                                </label>
+                                <label class="inline-flex items-center mr-3 text-sm">
+                                    <input type="radio" name="editClientDisableCookies" value="true" class="mr-1">
+                                    Enabled
+                                </label>
+                                <label class="inline-flex items-center text-sm">
+                                    <input type="radio" name="editClientDisableCookies" value="false" class="mr-1">
+                                    Disabled
+                                </label>
+                            </div>
                             
                             <div class="pt-4 border-t border-gray-200">
                                 <div class="flex items-center mb-4">
@@ -1441,6 +1532,16 @@ class AmneziaApp {
         // Close any existing modal first
         this.closeClientModal();
         document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+        // Init DisableCookies radios (tri-state: null | true | false)
+        const dcVal = client ? client.disable_cookies : null;
+        document.querySelectorAll('input[name="editClientDisableCookies"]').forEach(r => {
+            if (dcVal === null || dcVal === undefined) {
+                r.checked = (r.value === 'inherit');
+            } else {
+                r.checked = (r.value === String(dcVal));
+            }
+        });
         
         // Setup form submission
         const form = document.getElementById('clientForm');
@@ -1546,6 +1647,27 @@ class AmneziaApp {
                 return response.json();
             })
             .then(() => {
+                // Then save DisableCookies (tri-state: null | true | false)
+                const dcChecked = document.querySelector('input[name="editClientDisableCookies"]:checked');
+                let dcPayload = null;
+                if (dcChecked && dcChecked.value !== 'inherit') {
+                    dcPayload = dcChecked.value === 'true';
+                }
+                return fetch(`/api/servers/${serverId}/clients/${clientId}/disable-cookies`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ disable_cookies: dcPayload })
+                });
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Failed to update DisableCookies');
+                }
+                return response.json();
+            })
+            .then(() => {
                 // Then save suspension time if set
                 const suspendAtInput = document.getElementById('suspendAt');
                 if (suspendAtInput) {
@@ -1596,6 +1718,23 @@ class AmneziaApp {
                 if (result.error) {
                     throw new Error(result.error);
                 }
+
+                // New client was created; apply DisableCookies override if user selected one.
+                // Backend creates client with disable_cookies = null (inherit);
+                // if the user explicitly chose Enabled/Disabled, push it now.
+                const dcChecked = document.querySelector('input[name="editClientDisableCookies"]:checked');
+                const newClientId = result.client?.id;
+                if (newClientId && dcChecked && dcChecked.value !== 'inherit') {
+                    const dcPayload = dcChecked.value === 'true';
+                    return fetch(`/api/servers/${serverId}/clients/${newClientId}/disable-cookies`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ disable_cookies: dcPayload })
+                    }).then(() => result);
+                }
+                return result;
+            })
+            .then(() => {
                 this.showTempMessage('Client added successfully!', 'success');
                 this.closeClientModal();
                 this.loadServers();

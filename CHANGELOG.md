@@ -1,4 +1,21 @@
 # CHANGELOG
+## Version 1.9.2
+### New Features
+- Added DisableCookies param support. (#95)
+> If the setting is enabled on the server level, it's applied to all clients and to the server config.
+> If it's applied on the client config level - it's applied only to a single client. Client can override server setting.
+- New endpoint for DisableCookies management per client.
+
+### Improvements
+- Server blocks can be collapsed. You can click on the server name or an arrow on the right side.
+- Small download client config separate button added.
+- Some UI improvements: fields formatting in server modals.
+- RandomTrailers values are now set to on/off instead of 1/0 and checkbox is unticked by default.
+
+### Fix
+- Logic of S3-S4 fields show/hide updated. (#93)
+- S1-S4 values generator now suggests values only >12.
+- Public IP/Endpoint now shows the custom value if set at server creation, otherwise detected Public IP
 
 ## Version 1.9.1
 ### New Features

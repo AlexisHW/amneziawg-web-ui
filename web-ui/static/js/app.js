@@ -637,7 +637,8 @@ class AmneziaApp {
             awg2: awg2Element ? awg2Element.checked : true,
             auto_start: autoStartElement ? autoStartElement.checked : true,
             endpoint: endpointElement ? endpointElement.value.trim() : '',
-            awg3: awg3Element ? awg3Element.checked : true
+            awg3: awg3Element ? awg3Element.checked : true,
+            disable_cookies: this.getElement('paramDisableCookies')?.checked || false
         };
 
         console.log("Form data:", formData);
@@ -679,7 +680,7 @@ class AmneziaApp {
                 Object.assign(formData.obfuscation_params, {
                     HeaderProtectionKey:     this.getElement('paramHeaderProtectionKey')?.value || '',
                     ContentPaddingAddition:  this.getElement('paramContentPaddingAddition')?.value || '10-50',
-                    RandomTrailers:          this.getElement('paramRandomTrailers')?.checked ? 1 : 0,
+                    RandomTrailers:          this.getElement('paramRandomTrailers')?.checked ? 'on' : 'off',
                     RekeyAfterTime:          this.getElement('paramRekeyAfterTime')?.value || '1200-1800',
                     RekeyTimeout:            this.getElement('paramRekeyTimeout')?.value || '10-25',
                     KeepaliveTimeout:        this.getElement('paramKeepaliveTimeout')?.value || '20-40',
@@ -1000,6 +1001,10 @@ class AmneziaApp {
                                     `;
                                 }).join('')}
                             </div>
+                            ${serverInfo.disable_cookies ? `
+                            <div class="text-xs mt-1">
+                                <span class="font-medium">DisableCookies:</span> <span class="font-mono">1</span>
+                            </div>` : ''}
                         </div>
                         ` : ''}
 
@@ -1417,6 +1422,22 @@ class AmneziaApp {
                                 Leave empty to disable auto-suspension (still need to activate client after suspension).
                             </p>
                             ` : ''}
+
+                            <div class="mt-3">
+                                <div class="text-sm font-medium mb-1">DisableCookies (AWG 3.1):</div>
+                                <label class="inline-flex items-center mr-3 text-sm">
+                                    <input type="radio" name="editClientDisableCookies" value="inherit" class="mr-1">
+                                    Inherit from server
+                                </label>
+                                <label class="inline-flex items-center mr-3 text-sm">
+                                    <input type="radio" name="editClientDisableCookies" value="true" class="mr-1">
+                                    Enabled
+                                </label>
+                                <label class="inline-flex items-center text-sm">
+                                    <input type="radio" name="editClientDisableCookies" value="false" class="mr-1">
+                                    Disabled
+                                </label>
+                            </div>
                             
                             <div class="pt-4 border-t border-gray-200">
                                 <div class="flex items-center mb-4">
@@ -1511,6 +1532,16 @@ class AmneziaApp {
         // Close any existing modal first
         this.closeClientModal();
         document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+        // Init DisableCookies radios (tri-state: null | true | false)
+        const dcVal = client ? client.disable_cookies : null;
+        document.querySelectorAll('input[name="editClientDisableCookies"]').forEach(r => {
+            if (dcVal === null || dcVal === undefined) {
+                r.checked = (r.value === 'inherit');
+            } else {
+                r.checked = (r.value === String(dcVal));
+            }
+        });
         
         // Setup form submission
         const form = document.getElementById('clientForm');
@@ -1616,6 +1647,27 @@ class AmneziaApp {
                 return response.json();
             })
             .then(() => {
+                // Then save DisableCookies (tri-state: null | true | false)
+                const dcChecked = document.querySelector('input[name="editClientDisableCookies"]:checked');
+                let dcPayload = null;
+                if (dcChecked && dcChecked.value !== 'inherit') {
+                    dcPayload = dcChecked.value === 'true';
+                }
+                return fetch(`/api/servers/${serverId}/clients/${clientId}/disable-cookies`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ disable_cookies: dcPayload })
+                });
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Failed to update DisableCookies');
+                }
+                return response.json();
+            })
+            .then(() => {
                 // Then save suspension time if set
                 const suspendAtInput = document.getElementById('suspendAt');
                 if (suspendAtInput) {
@@ -1666,6 +1718,23 @@ class AmneziaApp {
                 if (result.error) {
                     throw new Error(result.error);
                 }
+
+                // New client was created; apply DisableCookies override if user selected one.
+                // Backend creates client with disable_cookies = null (inherit);
+                // if the user explicitly chose Enabled/Disabled, push it now.
+                const dcChecked = document.querySelector('input[name="editClientDisableCookies"]:checked');
+                const newClientId = result.client?.id;
+                if (newClientId && dcChecked && dcChecked.value !== 'inherit') {
+                    const dcPayload = dcChecked.value === 'true';
+                    return fetch(`/api/servers/${serverId}/clients/${newClientId}/disable-cookies`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ disable_cookies: dcPayload })
+                    }).then(() => result);
+                }
+                return result;
+            })
+            .then(() => {
                 this.showTempMessage('Client added successfully!', 'success');
                 this.closeClientModal();
                 this.loadServers();

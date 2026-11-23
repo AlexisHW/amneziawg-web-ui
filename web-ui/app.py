@@ -33,7 +33,7 @@ ALLOWED_LOG_REALPATHS = {os.path.realpath(path) for path in ALLOWED_LOG_PATHS}
 # AWG 3.1 defaults
 DEFAULT_HEADER_PROTECTION_KEY = ""          # generated per‑server
 DEFAULT_CONTENT_PADDING_ADDITION = "10-50"
-DEFAULT_RANDOM_TRAILERS = 1
+DEFAULT_RANDOM_TRAILERS = "off"
 DEFAULT_REKEY_AFTER_TIME = "1200-1800"
 DEFAULT_REKEY_TIMEOUT = "10-25"
 DEFAULT_KEEPALIVE_TIMEOUT = "20-40"
@@ -349,6 +349,7 @@ class AmneziaManager:
         awg3_enabled = server_data.get('awg3', False)
         awg2_enabled = server_data.get('awg2', False)
         obfuscation_params = None
+        disable_cookies = bool(server_data.get('disable_cookies', False))
 
         if enable_obfuscation:
             if 'obfuscation_params' in server_data and server_data['obfuscation_params']:
@@ -411,6 +412,8 @@ RekeyAfterTime = {obfuscation_params['RekeyAfterTime']}
 RekeyTimeout = {obfuscation_params['RekeyTimeout']}
 KeepaliveTimeout = {obfuscation_params['KeepaliveTimeout']}
 """
+                if disable_cookies:
+                    server_config_content += "DisableCookies = 1\n"
 
         server_config = {
             "id": server_id,
@@ -430,6 +433,7 @@ KeepaliveTimeout = {obfuscation_params['KeepaliveTimeout']}
             "obfuscation_enabled": enable_obfuscation,
             "awg2_enabled": awg2_enabled,
             "awg3_enabled": awg3_enabled,
+            "disable_cookies": disable_cookies,
             "obfuscation_params": obfuscation_params,
             "auto_start": auto_start,
             "dns": dns_servers,  # Store DNS servers
@@ -586,6 +590,7 @@ KeepaliveTimeout = {obfuscation_params['KeepaliveTimeout']}
             "i_settings": client_i_settings,
             "awg2_enabled": server.get("awg2_enabled", False),
             "awg3_enabled": server.get("awg3_enabled", False),
+            "disable_cookies": None,   # None = inherit from server; True/False = explicit override
             "allowed_ips": client_allowed_ips  # Store client-side AllowedIPs
         }
 
@@ -738,7 +743,16 @@ RekeyAfterTime = {params['RekeyAfterTime']}
 RekeyTimeout = {params['RekeyTimeout']}
 KeepaliveTimeout = {params['KeepaliveTimeout']}
 """
+        # DisableCookies: client override wins; None/missing inherits server
+        client_dc = client_config.get("disable_cookies", None)
+        if client_dc is not None:
+            effective_disable_cookies = bool(client_dc)
+        else:
+            effective_disable_cookies = bool(server.get("disable_cookies", False))
 
+        if effective_disable_cookies:
+            config += "DisableCookies = 1\n"
+                    
         # Add I-settings if enabled and I1 is present
         if client_config.get('apply_i_settings', False):
             i_settings = client_config.get('i_settings', {})
@@ -788,6 +802,31 @@ PersistentKeepalive = 25
         # Regenerate config
         config_content = self.generate_wireguard_client_config(server, client, include_comments=True)
         
+        return client, config_content
+    
+    def update_client_disable_cookies(self, server_id, client_id, disable_cookies):
+        """Update client-level DisableCookies override (AWG 3.1).
+        disable_cookies: True / False / None (None = inherit server)."""
+        server = next((s for s in self.config['servers'] if s['id'] == server_id), None)
+        if not server:
+            return None, "Server not found"
+
+        client = next((c for c in server["clients"] if c["id"] == client_id), None)
+        if not client:
+            return None, "Client not found"
+
+        if disable_cookies is None:
+            client['disable_cookies'] = None
+            if client_id in self.config["clients"]:
+                self.config["clients"][client_id]['disable_cookies'] = None
+        else:
+            val = bool(disable_cookies)
+            client['disable_cookies'] = val
+            if client_id in self.config["clients"]:
+                self.config["clients"][client_id]['disable_cookies'] = val
+
+        self.save_config()
+        config_content = self.generate_wireguard_client_config(server, client, include_comments=True)
         return client, config_content
 
     def update_client_i_settings(self, server_id, client_id, apply_i_settings=None, i_settings=None):
@@ -1352,6 +1391,7 @@ PersistentKeepalive = 25
                 "awg2_enabled": server.get("awg2_enabled", False),
                 "awg3_enabled": server.get("awg3_enabled", False),
                 "obfuscation_params": server.get("obfuscation_params"),
+                "disable_cookies": server.get("disable_cookies", False),
                 "auto_start": server.get("auto_start", True),
                 "dns": server.get("dns", DNS_SERVERS),
                 "server_private_key": server.get("server_private_key", ""),
@@ -1376,6 +1416,7 @@ PersistentKeepalive = 25
                 "i_settings": client.get("i_settings", {}),
                 "awg2_enabled": client.get("awg2_enabled", False),
                 "awg3_enabled": client.get("awg3_enabled", False),
+                "disable_cookies": client.get("disable_cookies", None),
                 "allowed_ips": client.get("allowed_ips", "0.0.0.0/0, ::/0"),
                 "status": client.get("status", "active"),
                 "created_at": client.get("created_at", time.time()),
@@ -1424,6 +1465,7 @@ PersistentKeepalive = 25
                 "i_settings": client.get("i_settings", {}),
                 "awg2_enabled": client.get("awg2_enabled", False),
                 "awg3_enabled": client.get("awg3_enabled", False),
+                "disable_cookies": client.get("disable_cookies", None),
                 "allowed_ips": client.get("allowed_ips", "0.0.0.0/0, ::/0"),
             }
         }
@@ -1453,6 +1495,7 @@ PersistentKeepalive = 25
                 "awg2_enabled": server.get("awg2_enabled", False),
                 "awg3_enabled": server.get("awg3_enabled", False),
                 "obfuscation_params": server.get("obfuscation_params"),
+                "disable_cookies": server.get("disable_cookies", False),
                 "auto_start": server.get("auto_start", True),
                 "dns": server.get("dns", DNS_SERVERS),
                 "server_private_key": server.get("server_private_key", ""),
@@ -1475,6 +1518,7 @@ PersistentKeepalive = 25
                     "i_settings": client.get("i_settings", {}),
                     "awg2_enabled": client.get("awg2_enabled", False),
                     "awg3_enabled": client.get("awg3_enabled", False),
+                    "disable_cookies": client.get("disable_cookies", None),
                     "allowed_ips": client.get("allowed_ips", "0.0.0.0/0, ::/0"),
                     "status": client.get("status", "active"),
                     "created_at": client.get("created_at", time.time()),
@@ -1508,6 +1552,7 @@ PersistentKeepalive = 25
             "obfuscation": server_data.get("obfuscation_enabled", True),
             "awg2": server_data.get("awg2_enabled", False),
             "awg3": server_data.get("awg3_enabled", False),
+            "disable_cookies": server_data.get("disable_cookies", False),
             "auto_start": False,  # Don't auto-start imported servers
             "endpoint": server_data.get("endpoint", ""),
         }
@@ -1585,6 +1630,7 @@ PersistentKeepalive = 25
             "i_settings": client_data.get("i_settings", {}),
             "awg2_enabled": client_data.get("awg2_enabled", server.get("awg2_enabled", False)),
             "awg3_enabled": client_data.get("awg3_enabled", server.get("awg3_enabled", False)),
+            "disable_cookies": client_data.get("disable_cookies", None),
             "allowed_ips": client_data.get("allowed_ips", "0.0.0.0/0, ::/0"),
         }
 
@@ -1709,6 +1755,19 @@ def update_client_allowed_ips(server_id, client_id):
             "client": client,
             "config": config_content
         })
+    return jsonify({"error": "Client not found"}), 404
+
+@app.route('/api/servers/<server_id>/clients/<client_id>/disable-cookies', methods=['PUT'])
+def update_client_disable_cookies(server_id, client_id):
+    data = request.json or {}
+    raw = data.get('disable_cookies', None)
+    disable_cookies = None if raw is None else bool(raw)
+
+    client, config_content = amnezia_manager.update_client_disable_cookies(
+        server_id, client_id, disable_cookies
+    )
+    if client:
+        return jsonify({"client": client, "config": config_content})
     return jsonify({"error": "Client not found"}), 404
 
 @app.route('/api/servers/<server_id>/clients/<client_id>/i-settings', methods=['PUT'])
@@ -1878,6 +1937,7 @@ def get_server_info(server_id):
         "config_preview": config_preview,
         "public_key": server['server_public_key'],
         "dns": server['dns'],
+        "disable_cookies": server.get("disable_cookies", False),
         "default_i_settings": {
             "i1": DEFAULT_I1,
             "i2": DEFAULT_I2,

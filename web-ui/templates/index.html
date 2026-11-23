@@ -212,24 +212,19 @@
                                     <p class="text-gray-500 text-xs mt-1">ChaCha20 key used to encrypt packet headers. Must match on both sides.</p>
                                 </div>
                             </div>
-
+<!--
                             <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm mt-2">
-                                <div class="col-span-2">
+
+                            </div> -->
+
+                            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm mt-2">
+                                <div>
                                     <label class="block text-xs font-medium text-gray-600">Content Padding Addition (recommended: 10-100 or 20-50)</label>
                                     <input type="text" id="paramContentPaddingAddition" value="10-50"
                                            placeholder="10-50"
                                            class="mt-1 block w-full border border-gray-300 rounded-md px-2 py-1 text-sm">
                                     <p class="text-gray-500 text-xs mt-1">Range of extra padding bytes added to transport packets.</p>
                                 </div>
-                                <div class="col-span-2 flex items-end">
-                                    <label class="flex items-center text-xs font-medium text-gray-700">
-                                        <input type="checkbox" id="paramRandomTrailers" checked class="mr-2">
-                                        Enable Random Trailers (Fills remaining space up to MTU with random bytes)
-                                    </label>
-                                </div>
-                            </div>
-
-                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm mt-2">
                                 <div>
                                     <label class="block text-xs font-medium text-gray-600">Rekey After Time (recommended: 100-120, s)</label>
                                     <input type="text" id="paramRekeyAfterTime" value="100-600"
@@ -245,10 +240,27 @@
                                     <input type="text" id="paramKeepaliveTimeout" value="20-40"
                                            class="mt-1 block w-full border border-gray-300 rounded-md px-2 py-1 text-sm">
                                 </div>
+                                <div class="flex items-center gap-2 mt-2">
+                                    <input type="checkbox" id="paramDisableCookies" class="rounded">
+                                    <label for="paramDisableCookies" class="text-sm font-medium text-gray-700">
+                                        DisableCookies <span class="text-xs ">(applied to server (with caution!) and inherited by its clients)</span>
+                                    </label>
+                                </div>
+                                <div class="flex items-end">
+                                    <input type="checkbox" id="paramRandomTrailers" class="mr-2">
+                                    <label class="flex items-center text-sm font-medium text-gray-700">
+                                        Enable Random Trailers <span class="text-xs ">(Fills remaining space up to MTU with random bytes)</span>
+                                    </label>
+                                </div>
                             </div>
 
                             <p class="text-amber-600 text-xs mt-2">
-                                ⚠️ When AWG 3.1 is enabled, S1–S4 must be at least <strong>12</strong>. Lower values will be clamped automatically.
+                                ⚠️ - When AWG 3.1 is enabled, S1–S4 must be at least <strong>12</strong>. Lower values will be clamped automatically.
+                                <br>
+                                - When <strong>RandomTrailers</strong> is on, it's recommended that S1-S4 params are <strong>equal</strong>
+                                <br>
+                                - Enabling <strong>DisableCookies</strong> on the server side is <strong>dangerous</strong>! It removes removes protection against handshake flooding.<br>
+                                You can eliminate risks by enable it per client in the client settings.
                             </p>
                         </div>
 

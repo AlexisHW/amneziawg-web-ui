@@ -15,6 +15,7 @@
 ### Fix
 - Logic of S3-S4 fields show/hide updated. (#93)
 - S1-S4 values generator now suggests values only >12.
+- Public IP/Endpoint now shows the custom value if set at server creation, otherwise detected Public IP
 
 ## Version 1.9.1
 ### New Features

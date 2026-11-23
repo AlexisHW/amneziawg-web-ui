@@ -425,8 +425,8 @@ KeepaliveTimeout = {obfuscation_params['KeepaliveTimeout']}
             "subnet": subnet,
             "server_ip": server_ip,
             "mtu": mtu,
-            "public_ip": endpoint,  # Store the endpoint (could be IP or hostname)
-            "endpoint": endpoint,    # Store explicitly as endpoint for clarity
+            "public_ip": self.public_ip,
+            "endpoint": endpoint,
             "obfuscation_enabled": enable_obfuscation,
             "awg2_enabled": awg2_enabled,
             "awg3_enabled": awg3_enabled,
@@ -1780,12 +1780,14 @@ def system_status():
 @app.route('/api/system/refresh-ip')
 def refresh_ip():
     """Refresh public IP address"""
+    old_ip = amnezia_manager.public_ip
     new_ip = amnezia_manager.detect_public_ip()
     amnezia_manager.public_ip = new_ip
 
-    # Update all servers with new IP
     for server in amnezia_manager.config["servers"]:
         server["public_ip"] = new_ip
+        if not server.get("endpoint") or server.get("endpoint") == old_ip:
+            server["endpoint"] = new_ip
 
     amnezia_manager.save_config()
     return jsonify({"public_ip": new_ip})
@@ -1866,6 +1868,7 @@ def get_server_info(server_id):
         "config_path": server['config_path'],
         "public_ip": server['public_ip'],
         "server_ip": server['server_ip'],
+        "endpoint": server.get('endpoint', server['public_ip']),
         "subnet": server['subnet'],
         "mtu": server.get('mtu', 1280),
         "obfuscation_enabled": server['obfuscation_enabled'],
